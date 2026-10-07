@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spaces | MindForum</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="home.css">
+    <style>
+        .space-hero-banner {
+            background: linear-gradient(135deg, #1C232B 0%, #151A20 100%);
+            border-radius: 16px;
+            padding: 30px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+        .space-hero-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .space-hero-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 16px;
+            background: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: white;
+            flex-shrink: 0;
+            box-shadow: 0 8px 20px rgba(158, 27, 27, 0.4);
+        }
+        .space-meta-badge {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #FFA5A5;
+            margin-bottom: 4px;
+        }
+        .space-hero-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 6px 0;
+            color: #FFFFFF;
+        }
+        .space-hero-desc {
+            font-size: 14px;
+            color: #A0AEC0;
+            margin: 0;
+            max-width: 520px;
+            line-height: 1.5;
+        }
+        .space-tabs-bar {
+            display: flex;
+            gap: 24px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+        .space-tab-btn {
+            background: none;
+            border: none;
+            padding: 10px 4px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: var(--transition);
+        }
+        .space-tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+        .contributor-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .contributor-item:last-child {
+            border-bottom: none;
+        }
+        .tag-pill-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .tag-pill {
+            background: var(--bg-color);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .tag-pill:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+        <div class="nav-container">
+            <h1 class="logo" onclick="window.location.href='/home'">MindForum</h1>
+            
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="spaceSearchInput" placeholder="Search in this space..." oninput="handleSpaceSearch(event)">
+            </div>
+
+            <nav class="nav-links">
+                <a href="/home"><i class="fas fa-compass"></i> Explore</a>
+                <a href="/home?filter=questions"><i class="fas fa-question-circle"></i> Questions</a>
+                <a href="/spaces" class="active"><i class="fas fa-layer-group"></i> Spaces</a>
+                <a href="/messages"><i class="fas fa-comments"></i> Messages</a>
+                <a href="/ai-assistant"><i class="fas fa-robot"></i> AI Assistant</a>
+            </nav>
+
+            <div class="nav-actions">
+                <div class="notification-wrapper" onclick="window.location.href='/notifications'">
+                    <i class="fas fa-bell notif-icon"></i>
+                    <span class="notification-dot hidden" id="notifDot"></span>
+                </div>
+                <button class="btn-ask" onclick="openAskModal()">Ask Question</button>
+                <div class="profile-section">
+                    <div class="avatar-container" id="profileTrigger" onclick="window.location.href='/profile.html'">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-layout">
+        <!-- Left Sidebar -->
+        <aside class="sidebar-left">
+            <div class="sidebar-section">
+                <h3><i class="fas fa-atom brand-icon"></i> SPACES</h3>
+                <p class="subtitle">Follow your interests</p>
+                <ul class="space-list" id="spacesNavList">
+                    <li onclick="window.location.href='/home'"><i class="fas fa-home"></i> Home</li>
+                    <li data-space="Psychology" onclick="switchSpace('Psychology')"><i class="fas fa-brain"></i> Psychology</li>
+                    <li data-space="Philosophy" onclick="switchSpace('Philosophy')"><i class="fas fa-book-open"></i> Philosophy</li>
+                    <li data-space="Technology" onclick="switchSpace('Technology')"><i class="fas fa-microchip"></i> Technology</li>
+                    <li data-space="Science" onclick="switchSpace('Science')"><i class="fas fa-atom"></i> Science</li>
+                    <li data-space="Business" onclick="switchSpace('Business')"><i class="fas fa-briefcase"></i> Business</li>
+                </ul>
+                <button class="btn-create-space" onclick="openAskModal('Space')"><i class="fas fa-plus"></i> Create Space</button>
+            </div>
+            
+            <div class="footer-links">
+                <a href="#">Help</a> • <a href="#">Privacy</a> • <a href="#">Terms</a>
+                <p>&copy; 2024 MindForum</p>
+            </div>
+        </aside>
+
+        <!-- Main Feed -->
+        <section class="feed-container">
+            <!-- Space Hero Banner matching Image 4 -->
+            <div class="space-hero-banner" id="spaceHeroBanner">
+                <div class="space-hero-content">
+                    <div class="space-hero-icon" id="spaceHeroIcon">
+                        <i class="fas fa-microchip"></i>
+                    </div>
+                    <div>
+                        <div class="space-meta-badge" id="spaceHeroBadge">TECHNOLOGY • 2.4M MEMBERS</div>
+                        <h1 class="space-hero-title" id="spaceHeroTitle">Technology</h1>
+                        <p class="space-hero-desc" id="spaceHeroDesc">The frontier of innovation. Discussing AI, future tech, engineering, and digital society.</p>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <button class="btn-ask" id="followSpaceBtn" onclick="toggleFollowSpace(this)">Follow Space</button>
+                    <button class="btn-vote" style="color:white; border:1px solid rgba(255,255,255,0.2); border-radius:50%; width:38px; height:38px; padding:0; display:flex; align-items:center; justify-content:center;">
+                        <i class="fas fa-ellipsis-h"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Composer Card -->
+            <div class="post-input-card">
+                <div class="input-top">
+                    <div class="avatar-container mini" id="miniProfileContainer" onclick="openAskModal()">
+                        <!-- Avatar -->
+                    </div>
+                    <input type="text" id="composerPlaceholder" placeholder="What would you like to ask or share about this space?" onclick="openAskModal()" readonly>
+                </div>
+            </div>
+
+            <!-- Filter Tabs matching Image 4 -->
+            <div class="space-tabs-bar">
+                <button class="space-tab-btn active" onclick="setTab('trending', this)">Trending</button>
+                <button class="space-tab-btn" onclick="setTab('new', this)">New</button>
+                <button class="space-tab-btn" onclick="setTab('top', this)">Top Answers</button>
+                <button class="space-tab-btn" onclick="setTab('unanswered', this)">Unanswered</button>
+            </div>
+
+            <!-- Dynamic Feed Content -->
+            <div id="spaceFeedContent">
+                <!-- Populated dynamically -->
+            </div>
+        </section>
+
+        <!-- Right Side Panel -->
+        <aside class="sidebar-right">
+            <!-- About this Space -->
+            <div class="card" style="padding:22px; border-radius:14px; border:1px solid var(--border-color); background:var(--card-bg); margin-bottom:20px;">
+                <h3 style="font-size:14px; text-transform:uppercase; color:var(--text-secondary); letter-spacing:0.5px; margin-bottom:14px;">
+                    About this Space
+                </h3>
+                <div style="display:flex; flex-direction:column; gap:10px; font-size:13px; color:var(--text-secondary); margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Founded</span>
+                        <strong style="color:var(--text-main);">May 2018</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Activity level</span>
+                        <strong style="color:#2e7d32;">Very High</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Contributors</span>
+                        <strong style="color:var(--text-main);" id="sidebarContributorsCount">12.4K</strong>
+                    </div>
+                </div>
+                <p id="sidebarSpaceDesc" style="font-size:13px; color:var(--text-secondary); line-height:1.5; margin:0;">
+                    Technology is a place for engineers, researchers, and hobbyists to exchange knowledge about the tools shaping our tomorrow.
+                </p>
+            </div>
+
+            <!-- Top Contributors -->
+            <div class="card" style="padding:22px; border-radius:14px; border:1px solid var(--border-color); background:var(--card-bg); margin-bottom:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                    <h3 style="font-size:14px; text-transform:uppercase; color:var(--text-secondary); letter-spacing:0.5px; margin:0;">
+                        Top Contributors
+                    </h3>
+                    <a href="#" style="font-size:12px; color:var(--primary-color); text-decoration:none; font-weight:600;">View All</a>
+                </div>
+                <div id="topContributorsList">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+
+            <!-- Sub-topics Tags -->
+            <div class="card" style="padding:22px; border-radius:14px; border:1px solid var(--border-color); background:var(--card-bg); margin-bottom:20px;">
+                <h3 style="font-size:14px; text-transform:uppercase; color:var(--text-secondary); letter-spacing:0.5px; margin-bottom:8px;">
+                    Sub-topics
+                </h3>
+                <div class="tag-pill-list" id="subTopicsList">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Related Spaces -->
+            <div class="card" style="padding:22px; border-radius:14px; border:1px solid var(--border-color); background:var(--card-bg);">
+                <h3 style="font-size:14px; text-transform:uppercase; color:var(--text-secondary); letter-spacing:0.5px; margin-bottom:12px;">
+                    Related Spaces
+                </h3>
+                <div id="relatedSpacesList">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Floating Action Button (+) -->
+    <button class="floating-ask-btn" onclick="openAskModal()" title="Ask in Space">
+        <i class="fas fa-plus"></i>
+    </button>
+
+    <!-- Ask Question Modal -->
+    <div id="askModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Ask in Space</h2>
+                <span class="close-btn" onclick="closeAskModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <textarea id="questionContent" placeholder="What would you like to ask or share?"></textarea>
+                <div class="media-upload-options">
+                    <label for="mediaInput" class="upload-btn">
+                        <i class="fas fa-image"></i> Add Image
+                    </label>
+                    <input type="file" id="mediaInput" accept="image/*" hidden>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeAskModal()">Cancel</button>
+                <button class="btn-post" onclick="submitSpaceQuestion(this)">Post Question</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="spaces.js"></script>
+</body>
+</html>

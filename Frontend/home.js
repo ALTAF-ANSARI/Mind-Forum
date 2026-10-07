@@ -1,17 +1,13 @@
 let currentUser = null;
-let currentAnsweringQuestionId = null;
+let currentSpace = "All";
+let searchQuery = "";
 
 window.onload = async () => {
     initTheme();
     await fetchUserData();
-    
-    // Load feed if on an active space route
-    const path = window.location.pathname;
-    const feedRoutes = ["home.html", "/", "/home", "/philosophy", "/psychology", "/technology", "/science", "/business"];
-    if (feedRoutes.some(route => path.includes(route) || path === route)) {
-        await loadStories();
-        await loadSidebarData();
-    }
+    await loadQuestions();
+    await loadSidebarSpaces();
+    initGlobalEvents();
 };
 
 function initTheme() {
@@ -29,127 +25,404 @@ function setTheme(theme) {
     localStorage.setItem("theme", theme);
 }
 
+function initGlobalEvents() {
+    // Close dropdown on outside click
+    document.addEventListener("click", (e) => {
+        const dropdown = document.getElementById("profileDropdown");
+        const trigger = document.getElementById("profileTrigger");
+        if (dropdown && trigger && !trigger.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.remove("active");
+        }
+    });
+
+    // Check notification badge
+    checkNotifications();
+    setInterval(checkNotifications, 30000);
+}
+
+function toggleProfileDropdown() {
+    const dropdown = document.getElementById("profileDropdown");
+    if (dropdown) dropdown.classList.toggle("active");
+}
+
 async function fetchUserData() {
     try {
         const response = await fetch("/api/user/me");
         if (response.ok) {
             currentUser = await response.json();
             
-            // Render Nav and Mini Profile
-            const navAvatar = renderAvatarHtml(currentUser);
+            // Render Nav Avatar
             const trigger = document.getElementById("profileTrigger");
-            if (trigger) trigger.innerHTML = navAvatar;
+            if (trigger) trigger.innerHTML = renderAvatarHtml(currentUser);
 
             // Set View Profile Link
             const profileLink = document.getElementById("viewProfileLink");
-            if (profileLink) profileLink.href = `profile.html?id=${currentUser._id}`;
+            if (profileLink) profileLink.href = `/profile.html?id=${currentUser._id}`;
 
-            // Set My Library Links in Navigation
-            document.querySelectorAll('a[href="profile.html"]').forEach(link => {
-                link.href = `profile.html?id=${currentUser._id}`;
-            });
-
+            // Mini Profile in Ask Composer
             const mini = document.getElementById("miniProfileContainer");
-            if (mini) {
-                const miniAvatar = renderAvatarHtml(currentUser, "mini");
-                mini.innerHTML = miniAvatar;
-                mini.onclick = () => window.location.href = `profile.html?id=${currentUser._id}`;
-                mini.style.cursor = "pointer";
-            }
+            if (mini) mini.innerHTML = renderAvatarHtml(currentUser, "mini");
 
-            // Populate dropdown
-            document.getElementById("dropdownUserName").innerText = currentUser.name || "User";
-            document.getElementById("dropdownUserEmail").innerText = currentUser.email || "";
-            
-            // Render Bio and Interests in Dropdown
-            renderProfileDetails(currentUser);
+            // Populate dropdown header
+            const nameEl = document.getElementById("dropdownUserName");
+            const emailEl = document.getElementById("dropdownUserEmail");
+            if (nameEl) nameEl.innerText = currentUser.name || "User";
+            if (emailEl) emailEl.innerText = currentUser.email || "";
+
+            // Update Checklist in right sidebar
+            updateChecklist(currentUser);
+        } else if (response.status === 401) {
+            window.location.href = "/login";
         }
     } catch (error) {
         console.error("Error fetching user data:", error);
     }
 }
 
+function updateChecklist(user) {
+    const bioIcon = document.getElementById("checkBioIcon");
+    if (bioIcon) {
+        if (user.bio && user.bio.trim().length > 0) {
+            bioIcon.className = "fas fa-check-circle completed";
+            bioIcon.style.color = "#2e7d32";
+        } else {
+            bioIcon.className = "far fa-circle";
+            bioIcon.style.color = "var(--text-secondary)";
+        }
+    }
+    const upvotesIcon = document.getElementById("checkUpvotesIcon");
+    if (upvotesIcon) {
+        upvotesIcon.className = "far fa-check-circle completed";
+        upvotesIcon.style.color = "#2e7d32";
+    }
+}
+
 function renderAvatarHtml(user, sizeClass = "") {
     const name = user?.name || "User";
     const initial = name.charAt(0).toUpperCase();
-    const isDefault = !user?.profilePic || user.profilePic.includes("default-avatar.png");
+    const hasPhoto = user?.profilePic && user.profilePic !== "" && !user.profilePic.includes("default-avatar.png");
 
-    if (isDefault) {
-        return `<div class="avatar-letter">${initial}</div>`;
+    if (hasPhoto) {
+        return `<img src="${user.profilePic}" alt="${escapeHtml(name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
     } else {
-        return `<img src="${user.profilePic}" alt="${name}">`;
+        return `<div class="avatar-letter ${sizeClass}">${initial}</div>`;
     }
 }
 
-function renderProfileDetails(user) {
-    const dropdown = document.getElementById("profileDropdown");
-    
-    // Remove existing detail sections if any
-    const existingDetails = dropdown.querySelectorAll(".dropdown-user-details");
-    existingDetails.forEach(el => el.remove());
+function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
 
-    const detailsDiv = document.createElement("div");
-    detailsDiv.className = "dropdown-user-details";
-    detailsDiv.style.padding = "0 16px 12px 16px";
-    detailsDiv.style.fontSize = "13px";
+function timeAgo(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+    if (seconds < 60) return "just now";
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    return date.toLocaleDateString();
+}
 
-    if (user.bio) {
-        const bioP = document.createElement("p");
-        bioP.className = "user-bio-text";
-        bioP.style.color = "var(--text-main)";
-        bioP.style.fontStyle = "italic";
-        bioP.style.marginBottom = "8px";
-        bioP.innerText = user.bio;
-        detailsDiv.appendChild(bioP);
-    }
+// --- Feed Logic ---
 
-    if (user.interests && user.interests.length > 0) {
-        const interestsDiv = document.createElement("div");
-        interestsDiv.className = "user-interests-list";
-        
-        user.interests.forEach(interest => {
-            const span = document.createElement("span");
-            span.className = "interest-tag";
-            span.innerText = interest;
-            interestsDiv.appendChild(span);
+async function loadQuestions() {
+    const feed = document.getElementById("feedContent");
+    if (!feed) return;
+
+    feed.innerHTML = `
+        <div class="loading-state" style="padding:40px; text-align:center; color:var(--text-secondary);">
+            <i class="fas fa-circle-notch fa-spin" style="font-size:24px; color:var(--primary-color); margin-bottom:12px;"></i>
+            <p>Loading salon discussions...</p>
+        </div>
+    `;
+
+    try {
+        let url = `/api/questions?`;
+        if (currentSpace && currentSpace !== "All") {
+            url += `space=${encodeURIComponent(currentSpace)}&`;
+        }
+        if (searchQuery) {
+            url += `search=${encodeURIComponent(searchQuery)}&`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Failed to load questions");
+        const questions = await response.json();
+
+        if (questions.length === 0) {
+            feed.innerHTML = `
+                <div class="card" style="padding:48px 24px; text-align:center; color:var(--text-secondary); background:var(--card-bg); border-radius:16px; border:1px solid var(--border-color);">
+                    <i class="fas fa-feather-alt" style="font-size:36px; color:var(--primary-color); margin-bottom:16px; opacity:0.8;"></i>
+                    <h3 style="font-size:18px; color:var(--text-main); margin-bottom:8px;">No discussions yet in ${currentSpace === 'All' ? 'MindForum' : currentSpace}</h3>
+                    <p style="font-size:14px; max-width:380px; margin:0 auto 20px auto;">Be the intellectual pioneer. Pose the first thesis or inquiry to the salon community.</p>
+                    <button class="btn-ask" onclick="openAskModal()" style="margin:0 auto;">Ask First Question</button>
+                </div>
+            `;
+            return;
+        }
+
+        feed.innerHTML = "";
+        questions.forEach(q => {
+            const card = createQuestionCard(q);
+            feed.appendChild(card);
         });
-        detailsDiv.appendChild(interestsDiv);
+    } catch (err) {
+        console.error("Error loading feed:", err);
+        feed.innerHTML = `
+            <div class="card" style="padding:32px; text-align:center; color:var(--text-secondary);">
+                <p>Could not connect to the salon feed. Please refresh the page.</p>
+            </div>
+        `;
     }
-
-    // Insert after the header
-    const header = dropdown.querySelector(".dropdown-header");
-    header.after(detailsDiv);
 }
 
-// --- Question Flow ---
+function createQuestionCard(q) {
+    const card = document.createElement("div");
+    card.className = "question-card";
 
-function openAskModal() {
-    document.getElementById("askModal").style.display = "block";
+    const user = q.user || {};
+    const authorName = user.name || "Anonymous Thinker";
+    const authorTitle = user.title || "Salon Contributor";
+    const isExpert = user.isVerified || (user.credentials && user.credentials.length > 0);
+    const spaceBadge = q.spaces || "General";
+    const timeFormatted = timeAgo(q.createdAt);
+
+    const isAuthor = currentUser && (user._id === currentUser._id || q.user === currentUser._id);
+    const deleteBtn = isAuthor ? `
+        <button class="delete-post-btn" onclick="deleteQuestion('${q._id}', event)" title="Delete Question">
+            <i class="fas fa-trash-alt"></i>
+        </button>
+    ` : "";
+
+    const mediaHtml = q.mediaUrl ? `
+        <div class="media-container" style="border-radius:12px; overflow:hidden; margin:14px 0; background:#000; max-height:360px;">
+            ${q.mediaType === 'video' ? 
+                `<video src="${q.mediaUrl}" controls style="width:100%; max-height:360px;"></video>` :
+                `<img src="${q.mediaUrl}" alt="Attachment" style="width:100%; max-height:360px; object-fit:cover;" onerror="this.parentElement.style.display='none'">`
+            }
+        </div>
+    ` : "";
+
+    const upvotesCount = q.upvotes ? q.upvotes.length : 0;
+    const isUpvoted = currentUser && q.upvotes && q.upvotes.includes(currentUser._id);
+    const isDownvoted = currentUser && q.downvotes && q.downvotes.includes(currentUser._id);
+    const answersCount = q.answersCount !== undefined ? q.answersCount : 0;
+
+    card.innerHTML = `
+        ${deleteBtn}
+        <div class="card-header" style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+            <div class="avatar-container mini" onclick="window.location.href='/profile.html?id=${user._id}'" style="cursor:pointer;">
+                ${renderAvatarHtml(user, "mini")}
+            </div>
+            <div class="user-info" style="line-height:1.35;">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <h4 onclick="window.location.href='/profile.html?id=${user._id}'" style="cursor:pointer; font-size:15px; font-weight:600; color:var(--text-main); margin:0;">
+                        ${escapeHtml(authorName)}
+                    </h4>
+                    ${isExpert ? `<span class="expert-badge" style="color:var(--primary-color); font-weight:700; font-size:10px; text-transform:uppercase; background:rgba(158,27,27,0.08); padding:2px 6px; border-radius:4px;">EXPERT</span>` : ""}
+                </div>
+                <span style="font-size:12px; color:var(--text-secondary);">
+                    ${escapeHtml(authorTitle)} • Posted in <strong style="color:var(--primary-color);">${escapeHtml(spaceBadge)}</strong> • ${timeFormatted}
+                </span>
+            </div>
+        </div>
+
+        <div class="card-content" onclick="window.location.href='/question.html?id=${q._id}'" style="cursor:pointer;">
+            <h2 style="font-size:18px; font-weight:700; line-height:1.4; color:var(--text-main); margin-bottom:10px;">
+                ${escapeHtml(q.content)}
+            </h2>
+            ${mediaHtml}
+        </div>
+
+        <div class="card-stats" style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:10px; border-top:1px solid var(--border-color);">
+            <div class="stat-left" style="display:flex; align-items:center; gap:12px;">
+                <!-- Upvote/Downvote Pill Widget -->
+                <div class="btn-upvote-group" style="background:var(--bg-color); border:1px solid var(--border-color); border-radius:24px; display:flex; align-items:center;">
+                    <button class="btn-vote ${isUpvoted ? 'active' : ''}" onclick="toggleQuestionVote('${q._id}', 'upvote', this)" style="background:none; border:none; padding:6px 12px; cursor:pointer; font-size:13px; font-weight:600; color:${isUpvoted ? 'var(--primary-color)' : 'var(--text-secondary)'}; display:flex; align-items:center; gap:6px; border-right:1px solid var(--border-color);">
+                        <i class="fas fa-arrow-up"></i>
+                        <span class="count">${upvotesCount}</span>
+                    </button>
+                    <button class="btn-vote ${isDownvoted ? 'active' : ''}" onclick="toggleQuestionVote('${q._id}', 'downvote', this)" style="background:none; border:none; padding:6px 12px; cursor:pointer; font-size:13px; color:${isDownvoted ? '#333' : 'var(--text-secondary)'};" title="Downvote">
+                        <i class="fas fa-arrow-down"></i>
+                    </button>
+                </div>
+
+                <!-- Comments / Answers Count -->
+                <button class="stat-item" onclick="window.location.href='/question.html?id=${q._id}'" style="background:none; border:none; font-size:13px; color:var(--text-secondary); display:flex; align-items:center; gap:6px; cursor:pointer; padding:6px 10px; border-radius:20px;">
+                    <i class="far fa-comment"></i>
+                    <span>${answersCount}</span>
+                </button>
+
+                <!-- Share -->
+                <button class="stat-item" onclick="shareQuestion('${q._id}', '${escapeHtml(q.content).replace(/'/g, "\\'")}')" style="background:none; border:none; font-size:13px; color:var(--text-secondary); display:flex; align-items:center; gap:6px; cursor:pointer; padding:6px 10px; border-radius:20px;">
+                    <i class="fas fa-share-alt"></i>
+                </button>
+            </div>
+
+            <div class="stat-right">
+                <span style="font-size:12px; color:var(--text-secondary);">
+                    <i class="far fa-eye"></i> ${q.views || 0} views
+                </span>
+            </div>
+        </div>
+    `;
+
+    return card;
+}
+
+// Upvote / Downvote toggle on question
+async function toggleQuestionVote(questionId, type, btn) {
+    try {
+        const response = await fetch(`/api/questions/${questionId}/${type}`, { method: 'POST' });
+        if (!response.ok) return;
+        const data = await response.json();
+
+        const group = btn.closest(".btn-upvote-group");
+        const upBtn = group.querySelectorAll(".btn-vote")[0];
+        const downBtn = group.querySelectorAll(".btn-vote")[1];
+
+        upBtn.querySelector(".count").innerText = data.upvotesCount;
+
+        if (data.isUpvoted) {
+            upBtn.style.color = "var(--primary-color)";
+            downBtn.style.color = "var(--text-secondary)";
+        } else if (data.isDownvoted) {
+            upBtn.style.color = "var(--text-secondary)";
+            downBtn.style.color = "#333";
+        } else {
+            upBtn.style.color = "var(--text-secondary)";
+            downBtn.style.color = "var(--text-secondary)";
+        }
+    } catch (err) {
+        console.error("Voting error:", err);
+    }
+}
+
+function shareQuestion(id, titleSnippet) {
+    const url = `${window.location.origin}/question.html?id=${id}`;
+    navigator.clipboard.writeText(url).then(() => {
+        alert(`Link to question copied to clipboard:\n${url}`);
+    }).catch(() => {
+        prompt("Copy this question link:", url);
+    });
+}
+
+async function deleteQuestion(questionId, e) {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this discussion question?")) return;
+
+    try {
+        const response = await fetch(`/api/questions/${questionId}`, { method: "DELETE" });
+        if (response.ok) {
+            loadQuestions();
+        } else {
+            alert("Failed to delete question.");
+        }
+    } catch (err) {
+        console.error("Delete error:", err);
+    }
+}
+
+// Space filter from left sidebar
+function filterBySpace(spaceName, element) {
+    currentSpace = spaceName;
+
+    const listItems = document.querySelectorAll("#spacesSidebarList li");
+    listItems.forEach(li => li.classList.remove("active"));
+    if (element) element.classList.add("active");
+
+    loadQuestions();
+}
+
+// Real-time search handler
+let searchTimeout;
+function handleSearch(e) {
+    clearTimeout(searchTimeout);
+    searchQuery = e.target.value.trim();
+    searchTimeout = setTimeout(() => {
+        loadQuestions();
+    }, 350);
+}
+
+// --- Suggested Topics Sidebar (Dynamic) ---
+async function loadSidebarSpaces() {
+    const list = document.getElementById("suggestedTopicsList");
+    if (!list) return;
+
+    try {
+        const response = await fetch("/api/spaces");
+        if (!response.ok) return;
+        const spaces = await response.json();
+
+        list.innerHTML = spaces.slice(0, 4).map(s => `
+            <li onclick="window.location.href='/spaces.html?space=${encodeURIComponent(s.name)}'" style="cursor:pointer; display:flex; align-items:flex-start; gap:10px; margin-bottom:14px;">
+                <i class="${s.icon}" style="color:var(--primary-color); font-size:16px; margin-top:2px;"></i>
+                <div class="topic-info">
+                    <strong style="font-size:14px; color:var(--text-main); font-weight:600;">${s.name}</strong>
+                    <span style="font-size:12px; color:var(--text-secondary);">${s.membersCount} followers • ${s.questionCount} posts</span>
+                </div>
+            </li>
+        `).join("");
+    } catch (err) {
+        console.error("Error loading spaces:", err);
+    }
+}
+
+// --- Ask Modal Flow ---
+function openAskModal(preselectedSpace = "General") {
+    const modal = document.getElementById("askModal");
+    if (!modal) return;
+    modal.style.display = "block";
+
+    const select = document.getElementById("questionSpaceSelect");
+    if (select && preselectedSpace && preselectedSpace !== "All") {
+        for (let i = 0; i < select.options.length; i++) {
+            if (select.options[i].value.toLowerCase() === preselectedSpace.toLowerCase()) {
+                select.selectedIndex = i;
+                break;
+            }
+        }
+    }
+    const input = document.getElementById("questionContent");
+    if (input) input.focus();
 }
 
 function closeAskModal() {
-    document.getElementById("askModal").style.display = "none";
-    resetAskModal();
+    const modal = document.getElementById("askModal");
+    if (modal) modal.style.display = "none";
+    const content = document.getElementById("questionContent");
+    if (content) content.value = "";
+    removeMedia();
 }
 
-function handleMediaSelect(event) {
-    const file = event.target.files[0];
+function handleMediaSelect(e) {
+    const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
     const container = document.getElementById("mediaPreviewContainer");
     const imgPreview = document.getElementById("imagePreview");
-    const videoPreview = document.getElementById("videoPreview");
+    const vidPreview = document.getElementById("videoPreview");
 
-    reader.onload = (e) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
         container.classList.remove("hidden");
         if (file.type.startsWith("image/")) {
-            imgPreview.src = e.target.result;
+            imgPreview.src = ev.target.result;
             imgPreview.classList.remove("hidden");
-            videoPreview.classList.add("hidden");
+            vidPreview.classList.add("hidden");
         } else if (file.type.startsWith("video/")) {
-            videoPreview.src = e.target.result;
-            videoPreview.classList.remove("hidden");
+            vidPreview.src = ev.target.result;
+            vidPreview.classList.remove("hidden");
             imgPreview.classList.add("hidden");
         }
     };
@@ -157,43 +430,35 @@ function handleMediaSelect(event) {
 }
 
 function removeMedia() {
-    document.getElementById("mediaInput").value = "";
-    document.getElementById("mediaPreviewContainer").classList.add("hidden");
-}
-
-function resetAskModal() {
-    document.getElementById("questionContent").value = "";
-    removeMedia();
-}
-
-async function submitQuestion(btnElement) {
-    const content = document.getElementById("questionContent").value;
     const mediaInput = document.getElementById("mediaInput");
-    
-    if (!content.trim() && !mediaInput.files[0]) {
-        alert("Please enter some content or select media.");
+    if (mediaInput) mediaInput.value = "";
+    const container = document.getElementById("mediaPreviewContainer");
+    if (container) container.classList.add("hidden");
+}
+
+async function submitQuestion(btn) {
+    const contentInput = document.getElementById("questionContent");
+    const spaceSelect = document.getElementById("questionSpaceSelect");
+    const mediaInput = document.getElementById("mediaInput");
+
+    const content = contentInput ? contentInput.value.trim() : "";
+    const space = spaceSelect ? spaceSelect.value : "General";
+
+    if (!content) {
+        alert("Please write your question or thesis before submitting.");
         return;
     }
 
-    // Disable button and show loading state
-    const originalText = btnElement.innerText;
-    btnElement.disabled = true;
-    btnElement.innerText = "Uploading...";
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = "Publishing...";
 
     const formData = new FormData();
     formData.append("content", content);
-    if (mediaInput.files[0]) {
+    formData.append("spaces", space);
+    if (mediaInput && mediaInput.files[0]) {
         formData.append("media", mediaInput.files[0]);
     }
-
-    // Auto-assign space based on route
-    const path = window.location.pathname;
-    if (path.includes("philosophy")) formData.append("spaces", "Philosophy");
-    else if (path.includes("psychology")) formData.append("spaces", "Psychology");
-    else if (path.includes("technology")) formData.append("spaces", "Technology");
-    else if (path.includes("science")) formData.append("spaces", "Science");
-    else if (path.includes("business")) formData.append("spaces", "Business");
-    else formData.append("spaces", "General");
 
     try {
         const response = await fetch("/api/questions", {
@@ -203,217 +468,71 @@ async function submitQuestion(btnElement) {
 
         if (response.ok) {
             closeAskModal();
-            loadQuestions(); // Reload feed
+            loadQuestions();
         } else {
-            alert("Failed to post question.");
-        }
-    } catch (error) {
-        console.error("Posting error:", error);
-    } finally {
-        btnElement.disabled = false;
-        btnElement.innerText = originalText;
-    }
-}
-
-// --- Feed Logic ---
-
-async function loadStories() {
-    const feed = document.getElementById("feedContent");
-    try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const genre = urlParams.get('genre');
-        let url = "/api/stories";
-        if (genre) {
-            url += `?genre=${encodeURIComponent(genre)}`;
-        }
-
-        const response = await fetch(url);
-        const stories = await response.json();
-
-        if (stories.length === 0) {
-            feed.innerHTML = `
-                <div class="loading-state">
-                    <p>No stories yet. Be the first to publish!</p>
-                </div>
-            `;
-            return;
-        }
-
-        feed.innerHTML = "";
-        stories.forEach(s => {
-            const card = createStoryCard(s);
-            feed.appendChild(card);
-        });
-    } catch (error) {
-        feed.innerHTML = "<p>Error loading feed.</p>";
-    }
-}
-
-async function loadSidebarData() {
-    try {
-        const response = await fetch("/api/stories");
-        const allStories = await response.json();
-        
-        // Count stories by genre and author
-        const genreCounts = {};
-        const authorCounts = {};
-        
-        allStories.forEach(s => {
-            // Genre count
-            genreCounts[s.genre] = (genreCounts[s.genre] || 0) + 1;
-            
-            // Author count
-            const authorId = s.author?._id;
-            if (authorId) {
-                if (!authorCounts[authorId]) {
-                    authorCounts[authorId] = {
-                        name: s.author.name,
-                        profilePic: s.author.profilePic,
-                        count: 0
-                    };
-                }
-                authorCounts[authorId].count++;
-            }
-        });
-
-        // Populate Top Authors
-        const topAuthorsList = document.getElementById("topAuthorsList");
-        if (topAuthorsList) {
-            if (Object.keys(authorCounts).length === 0) {
-                topAuthorsList.innerHTML = "<li style='padding:10px; color:var(--text-light)'>No authors yet</li>";
-            } else {
-                topAuthorsList.innerHTML = Object.entries(authorCounts)
-                    .sort((a, b) => b[1].count - a[1].count)
-                    .slice(0, 5)
-                    .map(([id, info]) => `
-                        <li onclick="window.location.href='profile.html?id=${id}'" style="cursor:pointer">
-                            <div class="avatar-container mini" style="margin-right: 10px; flex-shrink: 0;">
-                                <img src="${info.profilePic || '/uploads/default-avatar.png'}" style="width:30px;height:30px;border-radius:50%; object-fit:cover;">
-                            </div>
-                            <div class="topic-info">
-                                <strong style="font-size:14px;">${info.name}</strong>
-                                <span>${info.count} stories shared</span>
-                            </div>
-                        </li>
-                    `).join("");
-            }
-        }
-
-        // Populate Trending Genres
-        const genreList = document.getElementById("trendingGenresList");
-        if (genreList) {
-            if (Object.keys(genreCounts).length === 0) {
-                genreList.innerHTML = "<li style='padding:10px; color:var(--text-light)'>No trends yet</li>";
-            } else {
-                genreList.innerHTML = Object.entries(genreCounts)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 5)
-                    .map(([genre, count]) => `
-                        <li onclick="window.location.href='home.html?genre=${encodeURIComponent(genre)}'" style="cursor:pointer">
-                            <div class="topic-info">
-                                <strong>${genre}</strong>
-                                <span>${count} stories published</span>
-                            </div>
-                        </li>
-                    `).join("");
-            }
-        }
-
-        // Populate Community Stats
-        const statsList = document.getElementById("communityStatsList");
-        if (statsList) {
-            const totalViews = allStories.reduce((acc, s) => acc + (s.views || 0), 0);
-            statsList.innerHTML = `
-                <li><i class="fas fa-book" style="color:var(--primary-color)"></i> ${allStories.length} Stories Shared</li>
-                <li><i class="fas fa-eye" style="color:var(--primary-color)"></i> ${totalViews.toLocaleString()} Total Reads</li>
-                <li><i class="fas fa-users" style="color:var(--primary-color)"></i> Community Authors</li>
-            `;
+            const data = await response.json();
+            alert(data.message || "Failed to publish question.");
         }
     } catch (err) {
-        console.error("Sidebar load error:", err);
+        console.error("Posting error:", err);
+        alert("An error occurred while posting.");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = originalText;
     }
 }
 
-function createStoryCard(s) {
-    const card = document.createElement("div");
-    card.className = "question-card"; // Reusing class for styling
-    
-    const mediaHtml = s.coverImage ? `
-        <div class="media-container">
-            <img src="${s.coverImage}" onerror="this.parentElement.style.display='none'">
-        </div>
-    ` : "";
-
-    const isAuthor = currentUser && s.author?._id === currentUser._id;
-    const deleteBtnHtml = isAuthor ? `
-        <button class="delete-post-btn" onclick="deleteStory('${s._id}')" title="Delete Story">
-            <i class="fas fa-trash-alt"></i>
-        </button>
-    ` : "";
-
-    card.innerHTML = `
-        ${deleteBtnHtml}
-        <div class="card-header">
-            <div class="avatar-container mini" onclick="window.location.href='profile.html?id=${s.author?._id}'">
-                ${renderAvatarHtml(s.author, "mini")}
-            </div>
-            <div class="user-info">
-                <h4 onclick="window.location.href='profile.html?id=${s.author?._id}'" style="cursor:pointer">${s.author?.name || 'Anonymous'}</h4>
-                <span>Genre: ${s.genre} • ${new Date(s.createdAt).toLocaleDateString()}</span>
-            </div>
-        </div>
-        <div class="card-content">
-            <h3 style="margin-bottom: 10px;">${s.title}</h3>
-            <p>${s.description}</p>
-            ${mediaHtml}
-        </div>
-        <div class="card-stats">
-            <div class="stat-left">
-                <div class="stat-badge">
-                     <i class="far fa-eye"></i> ${s.views || 0}
-                </div>
-            </div>
-            <div class="stat-right">
-                <div class="stat-item" onclick="window.location.href='read-story.html?id=${s._id}'" style="color: var(--primary-color); font-weight: bold;">
-                    <i class="fas fa-book-open"></i> Read Story
-                </div>
-            </div>
-        </div>
-    `;
-    return card;
+// Edit Profile Modal
+function openEditProfileModal() {
+    const modal = document.getElementById("editProfileModal");
+    if (!modal) return;
+    if (currentUser) {
+        document.getElementById("editBio").value = currentUser.bio || "";
+        document.getElementById("editInterests").value = (currentUser.interests || []).join(", ");
+    }
+    modal.style.display = "block";
 }
 
-async function deleteStory(storyId) {
-    if (!confirm("Are you sure you want to delete this story?")) return;
+function closeEditProfileModal() {
+    const modal = document.getElementById("editProfileModal");
+    if (modal) modal.style.display = "none";
+}
+
+async function updateProfile() {
+    const bio = document.getElementById("editBio").value.trim();
+    const interests = document.getElementById("editInterests").value.trim();
+
     try {
-        const response = await fetch(`/api/stories/${storyId}`, { method: "DELETE" });
+        const response = await fetch("/api/user/profile", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ bio, interests })
+        });
+
         if (response.ok) {
-            loadStories();
+            currentUser = await response.json();
+            closeEditProfileModal();
+            fetchUserData();
+            alert("Profile updated successfully!");
         } else {
-            alert("Failed to delete story (or endpoint not implemented).");
+            alert("Failed to update profile.");
         }
-    } catch (e) {
-        console.error(e);
+    } catch (err) {
+        console.error("Error updating profile:", err);
     }
 }
 
-// --- Profile & Misc ---
+function triggerProfileUpload() {
+    const input = document.getElementById("profileUploadInput");
+    if (input) input.click();
+}
 
-
-async function uploadPhoto(event) {
-    const file = event.target.files[0];
+async function uploadPhoto(e) {
+    const file = e.target.files[0];
     if (!file) return;
 
     const formData = new FormData();
     formData.append("profilePic", file);
-
-    // Provide visual feedback
-    const uploadTextSpan = document.querySelector('div[onclick="triggerProfileUpload()"] span');
-    let originalText = "Upload Profile";
-    if (uploadTextSpan) {
-        originalText = uploadTextSpan.innerText;
-        uploadTextSpan.innerText = "Uploading...";
-    }
 
     try {
         const response = await fetch("/api/user/upload-profile-pic", {
@@ -423,165 +542,29 @@ async function uploadPhoto(event) {
 
         if (response.ok) {
             const data = await response.json();
-            currentUser.profilePic = data.profilePic;
-            
-            // If on profile page and viewing self, update profileUser too
-            if (typeof profileUser !== 'undefined' && profileUser && profileUser._id === currentUser._id) {
-                profileUser.profilePic = data.profilePic;
-            }
-            
-            // Refresh avatars
-            document.getElementById("profileTrigger").innerHTML = renderAvatarHtml(currentUser);
-            const mini = document.getElementById("miniProfileContainer");
-            if (mini) mini.innerHTML = renderAvatarHtml(currentUser, "mini");
-            
-            // Refresh large profile image if on profile page
-            const large = document.getElementById("profileLargeImgContainer");
-            if (large) large.innerHTML = renderAvatarHtml(currentUser);
-            
-            alert("Profile picture updated!");
+            if (currentUser) currentUser.profilePic = data.profilePic;
+            fetchUserData();
         } else {
-            alert("Profile upload failed.");
-        }
-    } catch (error) {
-        console.error("Upload error:", error);
-    } finally {
-        if (uploadTextSpan) {
-            uploadTextSpan.innerText = originalText;
-        }
-    }
-}
-
-document.getElementById("profileTrigger").onclick = (e) => {
-    e.stopPropagation();
-    document.getElementById("profileDropdown").classList.toggle("active");
-};
-
-// Close dropdown when clicking outside
-window.onclick = (e) => {
-    const dropdown = document.getElementById("profileDropdown");
-    if (dropdown && dropdown.classList.contains("active") && !dropdown.contains(e.target)) {
-        dropdown.classList.remove("active");
-    }
-};
-
-function triggerProfileUpload() {
-    const input = document.getElementById("profileUploadInput");
-    if (input) {
-        input.click();
-        document.getElementById("profileDropdown").classList.remove("active");
-    }
-}
-
-function logout() {
-    window.location.href = "/logout";
-}
-
-// --- Edit Profile Logic ---
-
-function openEditProfileModal() {
-    if (!currentUser) return;
-    document.getElementById("editBio").value = currentUser.bio || "";
-    document.getElementById("editInterests").value = (currentUser.interests || []).join(", ");
-    document.getElementById("editProfileModal").style.display = "block";
-    document.getElementById("profileDropdown").classList.remove("active");
-}
-
-function closeEditProfileModal() {
-    document.getElementById("editProfileModal").style.display = "none";
-}
-
-async function updateProfile() {
-    const bio = document.getElementById("editBio").value;
-    const interests = document.getElementById("editInterests").value;
-
-    try {
-        const response = await fetch("/api/user/profile", {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ bio, interests })
-        });
-
-        if (response.ok) {
-            currentUser = await response.json();
-            renderProfileDetails(currentUser);
-            closeEditProfileModal();
-            alert("Profile updated!");
-        } else {
-            alert("Failed to update profile.");
-        }
-    } catch (error) {
-        console.error("Update error:", error);
-    }
-}
-
-// --- Notification Polling & Desktop Alerts ---
-
-async function checkNotifications() {
-    try {
-        const response = await fetch('/api/notifications');
-        if (!response.ok) return;
-        const notifications = await response.json();
-        
-        const unread = notifications.filter(n => !n.isRead);
-        const notifDot = document.getElementById('notifDot');
-        
-        if (unread.length > 0) {
-            if (notifDot) notifDot.classList.remove('hidden');
-            
-            // Handle browser notifications for unseen items
-            const forBrowser = unread.filter(n => !n.isBrowserNotified);
-            if (forBrowser.length > 0) {
-                for (const notif of forBrowser) {
-                    showBrowserNotification(notif);
-                }
-                
-                // Mark as browser-notified
-                await fetch('/api/notifications/browser-notified', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ids: forBrowser.map(n => n._id) })
-                });
-            }
-        } else {
-            if (notifDot) notifDot.classList.add('hidden');
+            alert("Failed to upload avatar photo.");
         }
     } catch (err) {
-        console.error('Error checking notifications:', err);
+        console.error("Avatar upload error:", err);
     }
 }
 
-function showBrowserNotification(notif) {
-    if (!("Notification" in window)) return;
-    
-    if (Notification.permission === "granted") {
-        const options = {
-            body: notif.message,
-            icon: notif.sender.profilePic || "/uploads/default-avatar.png",
-            badge: "/favicon.ico"
-        };
-        
-        const n = new Notification("MindForum", options);
-        n.onclick = () => {
-            window.focus();
-            window.location.href = 'notifications.html';
-        };
-    } else if (Notification.permission !== "denied") {
-        Notification.requestPermission();
+// Notifications Polling
+async function checkNotifications() {
+    try {
+        const response = await fetch("/api/notifications");
+        if (!response.ok) return;
+        const list = await response.json();
+        const unread = list.filter(n => !n.isRead);
+        const dot = document.getElementById("notifDot");
+        if (dot) {
+            if (unread.length > 0) dot.classList.remove("hidden");
+            else dot.classList.add("hidden");
+        }
+    } catch (e) {
+        // quiet fail on polling
     }
 }
-
-// Start polling
-if (typeof auth !== 'undefined' || document.cookie.includes('token')) {
-    setInterval(checkNotifications, 30000); // Every 30 seconds
-    checkNotifications(); // Initial check
-}
-
-// Request permission on first interaction
-document.addEventListener('click', () => {
-    if ("Notification" in window && Notification.permission === "default") {
-        Notification.requestPermission();
-    }
-}, { once: true });

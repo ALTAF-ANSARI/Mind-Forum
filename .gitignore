@@ -1,6 +1,7 @@
 # Secrets and Env
 .env
 Backend/.env
+Backend/scratch_test_db.js
 
 # Dependencies
 node_modules/

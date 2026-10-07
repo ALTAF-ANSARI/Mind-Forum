@@ -4,97 +4,261 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Messages | MindForum</title>
-    <!-- Reusing main CSS for base styles -->
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="home.css">
-    <!-- Messages specific css -->
     <link rel="stylesheet" href="messages.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+
+    <!-- Top Navigation Bar (Image 7) -->
     <header class="navbar">
-        <div class="nav-container chat-nav-container">
-            <!-- Left Branding -->
-            <h1 class="logo" onclick="window.location.href='home.html'" style="color: #b92b27;">MindForum</h1>
+        <div class="nav-container">
+            <h1 class="logo" onclick="window.location.href='home.html'">MindForum</h1>
             
-            <!-- Mid Nav Links -->
             <nav class="nav-links">
-                <a href="home.html">Feed</a>
-                <a href="messages.html" class="active">Messages</a>
-                <a href="#">Explore</a>
-                <a href="profile.html?id=me" id="navProfileLink">Profile</a>
+                <a href="home.html"><i class="fas fa-compass"></i> Explore</a>
+                <a href="home.html"><i class="far fa-question-circle"></i> Questions</a>
+                <a href="spaces.html"><i class="fas fa-layer-group"></i> Spaces</a>
+                <a href="home.html"><i class="far fa-bookmark"></i> Bookmarks</a>
             </nav>
 
-            <!-- Right Options -->
             <div class="nav-actions">
-                <div class="search-bar chat-search">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Search conversations...">
-                </div>
-                <i class="fas fa-ellipsis-v options-icon"></i>
+                <button class="btn-ask" onclick="openAskModal()"><i class="fas fa-plus"></i> Ask Question</button>
                 <div class="profile-section">
-                    <div class="avatar-container mini" id="headerAvatarContainer">
-                        <!-- Loaded dynamically -->
+                    <div class="avatar-container" id="navAvatarContainer" onclick="toggleProfileDropdown(event)">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="dropdown-header">
+                            <h4 id="dropdownUserName">User</h4>
+                            <p id="dropdownUserEmail">user@example.com</p>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="window.location.href='profile.html'">
+                            <i class="fas fa-user-circle"></i>
+                            <span>My Profile</span>
+                        </div>
+                        <div class="dropdown-item" onclick="window.location.href='messages.html'">
+                            <i class="fas fa-comments"></i>
+                            <span>Messages</span>
+                        </div>
+                        <div class="dropdown-item" onclick="window.location.href='notifications.html'">
+                            <i class="fas fa-bell"></i>
+                            <span>Notifications</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item logout-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Logout</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </header>
 
-    <main class="chat-layout">
-        <!-- Sidebar - Discussions -->
-        <aside class="chat-sidebar">
-            <div class="sidebar-header">
-                <h2>Discussions</h2>
+    <!-- 3-Column Messages Layout (Image 7) -->
+    <main class="messages-3col-layout">
+        
+        <!-- Column 1: Spaces Sidebar -->
+        <aside class="sidebar-left">
+            <div class="sidebar-section">
+                <h3>SPACES</h3>
+                <ul class="space-list" id="sidebarSpacesList">
+                    <li onclick="window.location.href='home.html'"><i class="fas fa-home"></i> Home</li>
+                    <li onclick="window.location.href='spaces.html?space=Psychology'"><i class="fas fa-brain"></i> Psychology</li>
+                    <li onclick="window.location.href='spaces.html?space=Philosophy'"><i class="fas fa-book-open"></i> Philosophy</li>
+                    <li onclick="window.location.href='spaces.html?space=Technology'"><i class="fas fa-microchip"></i> Technology</li>
+                    <li onclick="window.location.href='spaces.html?space=Science'"><i class="fas fa-flask"></i> Science</li>
+                    <li onclick="window.location.href='spaces.html?space=Business'"><i class="fas fa-briefcase"></i> Business</li>
+                </ul>
             </div>
-            <div class="chat-list" id="chatListContainer">
-                <div class="loading-state">
-                    Loading conversations...
+
+            <div class="sidebar-footer">
+                <button class="btn-create-space" onclick="openNewChatModal()">
+                    <i class="fas fa-plus"></i> Create Space
+                </button>
+                <div class="footer-links">
+                    <a href="home.html">Help</a>
+                    <a href="home.html">Privacy</a>
+                    <a href="home.html">Terms</a>
                 </div>
-                <!-- Chat Items -->
             </div>
         </aside>
 
-        <!-- Main Chat Area -->
-        <section class="active-chat-area" id="activeChatArea">
-            <div class="no-chat-selected" id="noChatState">
-                <i class="far fa-comments" style="font-size: 48px; color: var(--text-muted); margin-bottom: 16px;"></i>
-                <h3>Select a discussion</h3>
-                <p>Choose a conversation from the sidebar to start chatting.</p>
+        <!-- Column 2: Conversations List -->
+        <section class="messages-conversations-pane">
+            <div class="conversations-top">
+                <div class="conversations-header">
+                    <h2>Messages</h2>
+                    <button class="btn-icon-new-chat" id="newChatBtn" onclick="openNewChatModal()" title="Start New Conversation">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+                
+                <div class="conversation-search-wrap">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="chatSearchInput" placeholder="Search conversations...">
+                </div>
             </div>
-            
-            <div id="chatContent" class="chat-content hidden">
-                <!-- Chat Header -->
-                <div class="chat-header">
-                    <div class="chat-user-info" id="chatHeaderInfo" onclick="viewChatProfile()">
-                        <!-- Dynamic Contact Info -->
-                    </div>
-                    <div class="chat-header-actions">
-                        <i class="fas fa-video"></i>
-                        <i class="fas fa-phone-alt"></i>
-                        <i class="fas fa-info-circle"></i>
-                    </div>
-                </div>
 
-                <!-- Chat History Feed -->
-                <div class="chat-history" id="chatHistoryFeed">
-                    <!-- Dynamic Messages -->
-                </div>
-
-                <!-- Chat Input Area -->
-                <div class="chat-input-wrapper">
-                    <button class="icon-btn attachment-btn"><i class="fas fa-plus"></i></button>
-                    <div class="chat-input-box">
-                        <input type="text" id="messageInput" placeholder="Share your thoughts...">
-                        <button class="icon-btn emoji-btn"><i class="far fa-smile"></i></button>
-                    </div>
-                    <button class="icon-btn send-btn" id="sendMessageBtn"><i class="fas fa-paper-plane"></i></button>
+            <div class="conversations-list-scroll" id="chatListContainer">
+                <div class="loading-state">
+                    <i class="fas fa-circle-notch fa-spin"></i> Loading dialogues...
                 </div>
             </div>
         </section>
+
+        <!-- Column 3: Active Discussion View -->
+        <section class="messages-chat-pane">
+            
+            <!-- Empty state when no conversation is selected -->
+            <div class="chat-placeholder-state" id="noChatState">
+                <div class="chat-empty-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h3>Intellectual Exchange</h3>
+                <p>Select a discussion from the left or initiate a dialogue with a fellow thinker.</p>
+                <button class="btn-start-dialogue" onclick="openNewChatModal()">
+                    <i class="fas fa-plus"></i> Start Dialogue
+                </button>
+            </div>
+
+            <!-- Active Chat View (shown when conversation selected) -->
+            <div class="chat-active-window hidden" id="chatContent">
+                
+                <!-- Chat Top Header -->
+                <div class="chat-main-header">
+                    <div class="chat-header-user-info" id="chatHeaderInfo" onclick="viewChatProfile()">
+                        <div class="header-avatar-wrap" id="headerAvatarWrap">
+                            <!-- Injected by JS -->
+                        </div>
+                        <div class="header-title-details">
+                            <h3 class="active-user-name" id="activeUserName">Dr. Julian Smith</h3>
+                            <div class="active-topic-badge">
+                                <span class="active-green-dot"></span>
+                                <span class="active-topic-text" id="activeTopicText">ACTIVE DISCUSSING QUANTUM MECHANICS RESEARCH</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chat-header-action-icons">
+                        <button class="btn-chat-action" title="Start Audio Call"><i class="fas fa-phone-alt"></i></button>
+                        <button class="btn-chat-action" title="Start Video Call"><i class="fas fa-video"></i></button>
+                        <button class="btn-chat-action" onclick="viewChatProfile()" title="Thinker Profile"><i class="fas fa-info-circle"></i></button>
+                    </div>
+                </div>
+
+                <!-- Messages Thread Scroll -->
+                <div class="chat-thread-stream" id="chatHistoryFeed">
+                    <!-- Date divider & message bubbles injected by JS -->
+                </div>
+
+                <!-- Typing indicator -->
+                <div class="typing-indicator hidden" id="typingIndicator">
+                    <span></span><span></span><span></span>
+                </div>
+
+                <!-- Input Footer Bar -->
+                <div class="chat-footer-composer">
+                    <div class="composer-top-row">
+                        <button class="composer-tool-btn" title="Add attachment" onclick="document.getElementById('hiddenChatFileInput').click()">
+                            <i class="fas fa-plus-circle"></i>
+                        </button>
+                        <button class="composer-tool-btn" title="Share photo" onclick="document.getElementById('hiddenChatImgInput').click()">
+                            <i class="far fa-image"></i>
+                        </button>
+
+                        <div class="composer-input-pill">
+                            <input type="text" id="messageInput" placeholder="Share your thoughts on Quantum Mechanics..." autocomplete="off">
+                            <button class="btn-send-message-circle" id="sendMessageBtn">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="composer-bottom-meta">
+                        <span class="composer-hint">SHIFT + ENTER FOR NEW LINE</span>
+                        <div class="composer-extra-tools">
+                            <button class="tool-mini" title="Insert Emoji"><i class="far fa-smile"></i></button>
+                            <button class="tool-mini" title="Bold formatting"><i class="fas fa-bold"></i></button>
+                            <button class="tool-mini" title="Insert Citation / Link"><i class="fas fa-link"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
     </main>
 
-    <!-- Socket.io for Realtime capability -->
+    <!-- Hidden file upload inputs for attachments -->
+    <input type="file" id="hiddenChatFileInput" style="display:none" onchange="handleFileAttachment(event)">
+    <input type="file" id="hiddenChatImgInput" style="display:none" accept="image/*" onchange="handleFileAttachment(event)">
+
+    <!-- New Chat Modal -->
+    <div class="modal-overlay hidden" id="newChatModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2><i class="fas fa-edit"></i> Start New Discussion</h2>
+                <button class="btn-close-modal" onclick="closeNewChatModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="search-bar" style="margin-bottom:16px;">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="userSearchInput" placeholder="Search thinkers by name or field..." autocomplete="off">
+                </div>
+                <div id="userSearchResults" class="user-search-results">
+                    <p class="search-hint" style="color:#888; font-size:13px; text-align:center; padding:20px;">
+                        Type at least 2 characters to discover thinkers...
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ask Question Modal (for header button) -->
+    <div id="askModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Ask an Intellectual Question</h2>
+                <button class="btn-close-modal" onclick="closeAskModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Choose Space</label>
+                    <select id="questionSpaceSelect">
+                        <option value="Psychology">Psychology</option>
+                        <option value="Philosophy">Philosophy</option>
+                        <option value="Technology">Technology</option>
+                        <option value="Science">Science</option>
+                        <option value="Business">Business</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Question Title</label>
+                    <input type="text" id="questionTitleInput" placeholder="Start your question with 'What', 'How', 'Why', etc.">
+                </div>
+                <div class="form-group">
+                    <label>Context or Background (Optional)</label>
+                    <textarea id="questionDescInput" rows="4" placeholder="Provide background or details to foster deeper dialogue..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" onclick="closeAskModal()">Cancel</button>
+                <button class="btn-modal-submit" onclick="submitNewQuestion()">Post Question</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Socket.IO & Logic -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="home.js"></script>
     <script src="messages.js"></script>

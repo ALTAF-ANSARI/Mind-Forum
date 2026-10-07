@@ -10,6 +10,9 @@ import Notification from "./models/notificationModel.js"
 import AIChat from "./models/aiChatModel.js"
 import Chat from "./models/chatModel.js"
 import Message from "./models/messageModel.js"
+import Question from "./models/questionModel.js"
+import Answer from "./models/answerModel.js"
+import Space from "./models/spaceModel.js"
 import http from "http"
 import { Server } from "socket.io"
 import { HfInference } from "@huggingface/inference"
@@ -65,6 +68,9 @@ async function auth(req, res, next) {
     const token = req.cookies.token;
 
     if (!token) {
+        if (req.path.startsWith("/api") || req.baseUrl.startsWith("/api")) {
+            return res.status(401).json({ message: "Authentication required" });
+        }
         return res.redirect("/login");
     }
 
@@ -74,9 +80,26 @@ async function auth(req, res, next) {
         next();
     } catch (err) {
         res.clearCookie("token");
+        if (req.path.startsWith("/api") || req.baseUrl.startsWith("/api")) {
+            return res.status(401).json({ message: "Invalid session" });
+        }
         res.redirect("/login");
     }
 }
+
+async function optionalAuth(req, res, next) {
+    const token = req.cookies.token;
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            req.user = decoded;
+        } catch (err) {
+            // Ignored for optional
+        }
+    }
+    next();
+}
+
 
 
 
@@ -118,24 +141,36 @@ app.get("/home",auth,(req,res)=>{
     res.sendFile(path.join(frontendPath,"home.html"))
 })
 
+app.get("/question",auth,(req,res)=>{
+    res.sendFile(path.join(frontendPath,"question.html"))
+})
+
+app.get("/questions",auth,(req,res)=>{
+    res.sendFile(path.join(frontendPath,"home.html"))
+})
+
+app.get("/spaces",auth,(req,res)=>{
+    res.sendFile(path.join(frontendPath,"spaces.html"))
+})
+
 app.get("/philosophy",auth,(req,res)=>{
-    res.sendFile(path.join(frontendPath,"philosophy.html"))
+    res.sendFile(path.join(frontendPath,"spaces.html"))
 })
 
 app.get("/psychology",auth,(req,res)=>{
-    res.sendFile(path.join(frontendPath,"psychology.html"))
+    res.sendFile(path.join(frontendPath,"spaces.html"))
 })
 
 app.get("/technology",auth,(req,res)=>{
-    res.sendFile(path.join(frontendPath,"technology.html"))
+    res.sendFile(path.join(frontendPath,"spaces.html"))
 })
 
 app.get("/science",auth,(req,res)=>{
-    res.sendFile(path.join(frontendPath,"science.html"))
+    res.sendFile(path.join(frontendPath,"spaces.html"))
 })
 
 app.get("/business",auth,(req,res)=>{
-    res.sendFile(path.join(frontendPath,"business.html"))
+    res.sendFile(path.join(frontendPath,"spaces.html"))
 })
 
 app.get("/ai-assistant",auth,(req,res)=>{
@@ -146,43 +181,58 @@ app.get("/messages",auth,(req,res)=>{
     res.sendFile(path.join(frontendPath,"messages.html"))
 })
 
+app.get("/profile",auth,(req,res)=>{
+    res.sendFile(path.join(frontendPath,"profile.html"))
+})
+
+app.get("/notifications",auth,(req,res)=>{
+    res.sendFile(path.join(frontendPath,"notifications.html"))
+})
+
 
 
 app.post("/login", async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        // Basic validation
+        if (!email || !password) {
+            return res.status(400).send("Email and password are required");
+        }
+
         // Find user by email
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ email: email.toLowerCase().trim() });
         if (!user) {
-            return res.send("Invalid Email or Password");
+            return res.status(401).send("Invalid Email or Password");
         }
 
         // Validate password
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
-            return res.send("Invalid Email or Password");
+            return res.status(401).send("Invalid Email or Password");
         }
 
         // Generate JWT
         const token = jwt.sign(
             { id: user._id, email: user.email },
             process.env.JWT_SECRET,
-            { expiresIn: "1h" }
+            { expiresIn: "7d" }
         );
 
         // Send token in cookie
+        // secure:true only works over HTTPS — disable on local dev
+        const isProduction = process.env.NODE_ENV === "production";
         res.cookie("token", token, {
             httpOnly: true,
-            secure: true,
-            sameSite: "none",
-            maxAge: 3600000
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            maxAge: 7 * 24 * 60 * 60 * 1000  // 7 days
         });
 
         res.send("Login Successful");
     } catch (error) {
-        console.error("Login error:", error);
-        res.status(500).send("Login failed");
+        console.error("Login error:", error.message, error.stack);
+        res.status(500).send("Login failed: " + error.message);
     }
 });
 
@@ -249,10 +299,10 @@ app.post("/api/ai/ask", auth, async (req, res) => {
             `Genre: ${s.genre}, Story Title: ${s.title}, Author: ${s.author.name}`
         ).join("\n");
 
-        const systemPrompt = `You are MindForum AI, an elite Editorial Intelligence designed for the MindForum knowledge-sharing platform.
-        Your purpose is to provide deep, analytical, and highly intellectual responses.
+        const systemPrompt = `You are Tellora AI, an elite Editorial Intelligence designed for the Tellora story-sharing platform.
+        Your purpose is to provide deep, analytical, and highly intellectual responses about stories and narratives.
         Structure your responses to be engaging, professional, and insightful. 
-        Context from recent forum discussions:
+        Context from recent platform stories:
         ${context}`;
 
         console.log("Generating AI response with Hugging Face (Qwen)...");
@@ -296,21 +346,7 @@ app.post("/api/ai/ask", auth, async (req, res) => {
     }
 });
 
-app.post("/api/user/upload-profile-pic", auth, upload.single("profilePic"), async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ message: "No file uploaded" });
-        }
-
-        const profilePicUrl = req.file.path.startsWith("http") ? req.file.path : `/uploads/${req.file.filename}`;
-        await User.findByIdAndUpdate(req.user.id, { profilePic: profilePicUrl });
-
-        res.json({ message: "Upload successful", profilePic: profilePicUrl });
-    } catch (error) {
-        console.error("Upload error:", error);
-        res.status(500).json({ message: "Upload failed" });
-    }
-});
+// Duplicate route removed — handled at line 205
 
 app.patch("/api/user/profile", auth, async (req, res) => {
     try {
@@ -390,25 +426,30 @@ app.post("/api/user/follow/:id", auth, async (req, res) => {
     }
 });
 
-// User Stats (Stories & Chapters count + Reach)
+// User Stats (Questions & Answers count + Reach + Followers)
 app.get("/api/user/stats/:id", async (req, res) => {
     try {
         const user = await User.findById(req.params.id);
         if (!user) return res.status(404).json({ message: "User not found" });
 
+        const qCount = await Question.countDocuments({ user: req.params.id });
+        const aCount = await Answer.countDocuments({ user: req.params.id });
         const sCount = await Story.countDocuments({ author: req.params.id });
         const cCount = await StoryChapter.countDocuments({ story: { $in: await Story.find({author: req.params.id}).distinct('_id') } });
         
-        // Sum of all views for user's stories
+        // Sum of all views for user's questions & stories
+        const userQuestions = await Question.find({ user: req.params.id });
+        const qViews = userQuestions.reduce((acc, q) => acc + (q.views || 0), 0);
         const stories = await Story.find({ author: req.params.id });
-        const totalReach = stories.reduce((acc, s) => acc + (s.views || 0), 0);
+        const sViews = stories.reduce((acc, s) => acc + (s.views || 0), 0);
+        const totalReach = qViews + sViews;
 
         res.json({ 
-            questions: sCount, // keeping keys same for frontend compatibility for now
-            answers: cCount, 
+            questions: qCount > 0 ? qCount : sCount,
+            answers: aCount > 0 ? aCount : cCount, 
             totalReach,
-            followersCount: user.followers.length,
-            followingCount: user.following.length
+            followersCount: user.followers ? user.followers.length : 0,
+            followingCount: user.following ? user.following.length : 0
         });
     } catch (error) {
         res.status(500).json({ message: "Error fetching stats" });
@@ -421,7 +462,7 @@ app.get("/api/user/stats/:id", async (req, res) => {
 app.get("/api/notifications", auth, async (req, res) => {
     try {
         const notifications = await Notification.find({ recipient: req.user.id })
-            .populate("sender", "name profilePic")
+            .populate("sender", "name profilePic title")
             .populate("questionId", "content")
             .sort({ createdAt: -1 })
             .limit(30);
@@ -462,15 +503,388 @@ app.patch("/api/notifications/browser-notified", auth, async (req, res) => {
     }
 });
 
-// Get User Stories
+// Get User Questions (Dynamic from MongoDB)
 app.get("/api/user/:id/questions", async (req, res) => {
     try {
+        const questions = await Question.find({ user: req.params.id })
+            .populate("user", "name profilePic title isVerified")
+            .sort({ createdAt: -1 });
+        if (questions && questions.length > 0) {
+            const questionIds = questions.map(q => q._id);
+            const answerCounts = await Answer.aggregate([
+                { $match: { question: { $in: questionIds } } },
+                { $group: { _id: "$question", count: { $sum: 1 } } }
+            ]);
+            const countsMap = {};
+            answerCounts.forEach(ac => { countsMap[ac._id.toString()] = ac.count; });
+            const enriched = questions.map(q => {
+                const obj = q.toObject();
+                obj.answersCount = countsMap[q._id.toString()] || 0;
+                return obj;
+            });
+            return res.json(enriched);
+        }
+        // Fallback to stories if user only has stories
         const stories = await Story.find({ author: req.params.id })
-            .populate("author", "name profilePic")
+            .populate("author", "name profilePic title")
             .sort({ createdAt: -1 });
         res.json(stories);
     } catch (error) {
-        res.status(500).json({ message: "Error fetching user stories" });
+        res.status(500).json({ message: "Error fetching user questions" });
+    }
+});
+
+// Get User Answers (Dynamic from MongoDB)
+app.get("/api/user/:id/answers", async (req, res) => {
+    try {
+        const answers = await Answer.find({ user: req.params.id })
+            .populate("user", "name profilePic title isVerified")
+            .populate({
+                path: "question",
+                populate: { path: "user", select: "name profilePic title" }
+            })
+            .sort({ createdAt: -1 });
+        res.json(answers);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching user answers" });
+    }
+});
+
+// --- Questions & Answers API ---
+
+// GET all questions with filters
+app.get("/api/questions", optionalAuth, async (req, res) => {
+    try {
+        const filter = {};
+        if (req.query.space && req.query.space !== "All" && req.query.space !== "Home") {
+            filter.spaces = { $regex: new RegExp(`^${req.query.space}$`, "i") };
+        }
+        if (req.query.search) {
+            filter.content = { $regex: req.query.search, $options: "i" };
+        }
+        if (req.query.userId) {
+            filter.user = req.query.userId;
+        }
+
+        let sortOption = { createdAt: -1 };
+        if (req.query.sort === "trending") {
+            sortOption = { views: -1, createdAt: -1 };
+        } else if (req.query.sort === "top") {
+            sortOption = { "upvotes.length": -1, createdAt: -1 };
+        }
+
+        const questions = await Question.find(filter)
+            .populate("user", "name profilePic title isVerified")
+            .sort(sortOption);
+
+        const questionIds = questions.map(q => q._id);
+        const answerCounts = await Answer.aggregate([
+            { $match: { question: { $in: questionIds } } },
+            { $group: { _id: "$question", count: { $sum: 1 } } }
+        ]);
+        const countsMap = {};
+        answerCounts.forEach(ac => { countsMap[ac._id.toString()] = ac.count; });
+
+        const enriched = questions.map(q => {
+            const obj = q.toObject();
+            obj.answersCount = countsMap[q._id.toString()] || 0;
+            return obj;
+        });
+
+        res.json(enriched);
+    } catch (error) {
+        console.error("Error fetching questions:", error);
+        res.status(500).json({ message: "Error fetching questions" });
+    }
+});
+
+// GET single question by ID
+app.get("/api/questions/:id", optionalAuth, async (req, res) => {
+    try {
+        const question = await Question.findById(req.params.id)
+            .populate("user", "name profilePic title isVerified");
+        if (!question) return res.status(404).json({ message: "Question not found" });
+
+        // Increment views if viewer is not the author
+        if (question.user && question.user._id.toString() !== req.user.id) {
+            question.views = (question.views || 0) + 1;
+            await question.save();
+        }
+
+        const answersCount = await Answer.countDocuments({ question: question._id });
+        const obj = question.toObject();
+        obj.answersCount = answersCount;
+
+        res.json(obj);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching question" });
+    }
+});
+
+// POST new question
+app.post("/api/questions", auth, upload.single("media"), async (req, res) => {
+    try {
+        const { content, spaces } = req.body;
+        if (!content || !content.trim()) {
+            return res.status(400).json({ message: "Content is required" });
+        }
+
+        let mediaUrl = "";
+        let mediaType = "text";
+        if (req.file) {
+            mediaUrl = `/uploads/${req.file.filename}`;
+            const ext = path.extname(req.file.originalname).toLowerCase();
+            if ([".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(ext)) {
+                mediaType = "image";
+            } else if ([".mp4", ".mov", ".avi", ".mkv"].includes(ext)) {
+                mediaType = "video";
+            }
+        }
+
+        const newQuestion = new Question({
+            user: req.user.id,
+            content: content.trim(),
+            spaces: spaces || "General",
+            mediaUrl,
+            mediaType
+        });
+        await newQuestion.save();
+        await newQuestion.populate("user", "name profilePic title isVerified");
+
+        res.status(201).json(newQuestion);
+    } catch (error) {
+        console.error("Error creating question:", error);
+        res.status(500).json({ message: "Failed to create question" });
+    }
+});
+
+// Upvote question
+app.post("/api/questions/:id/upvote", auth, async (req, res) => {
+    try {
+        const question = await Question.findById(req.params.id);
+        if (!question) return res.status(404).json({ message: "Question not found" });
+        const userId = req.user.id;
+
+        const upvoteIdx = question.upvotes.indexOf(userId);
+        const downvoteIdx = question.downvotes ? question.downvotes.indexOf(userId) : -1;
+
+        if (upvoteIdx > -1) {
+            question.upvotes.splice(upvoteIdx, 1);
+        } else {
+            question.upvotes.push(userId);
+            if (downvoteIdx > -1) question.downvotes.splice(downvoteIdx, 1);
+            
+            // Notify author if not own question
+            if (question.user.toString() !== userId) {
+                const sender = await User.findById(userId);
+                const notification = new Notification({
+                    recipient: question.user,
+                    sender: userId,
+                    type: "upvote",
+                    questionId: question._id,
+                    message: `${sender?.name || 'Someone'} upvoted your question: "${question.content.substring(0, 35)}..."`
+                });
+                await notification.save();
+            }
+        }
+        await question.save();
+        res.json({ upvotesCount: question.upvotes.length, downvotesCount: question.downvotes?.length || 0, isUpvoted: question.upvotes.includes(userId) });
+    } catch (error) {
+        res.status(500).json({ message: "Upvote failed" });
+    }
+});
+
+// Downvote question
+app.post("/api/questions/:id/downvote", auth, async (req, res) => {
+    try {
+        const question = await Question.findById(req.params.id);
+        if (!question) return res.status(404).json({ message: "Question not found" });
+        const userId = req.user.id;
+
+        if (!question.downvotes) question.downvotes = [];
+        const downvoteIdx = question.downvotes.indexOf(userId);
+        const upvoteIdx = question.upvotes.indexOf(userId);
+
+        if (downvoteIdx > -1) {
+            question.downvotes.splice(downvoteIdx, 1);
+        } else {
+            question.downvotes.push(userId);
+            if (upvoteIdx > -1) question.upvotes.splice(upvoteIdx, 1);
+        }
+        await question.save();
+        res.json({ upvotesCount: question.upvotes.length, downvotesCount: question.downvotes.length, isDownvoted: question.downvotes.includes(userId) });
+    } catch (error) {
+        res.status(500).json({ message: "Downvote failed" });
+    }
+});
+
+// DELETE question
+app.delete("/api/questions/:id", auth, async (req, res) => {
+    try {
+        const question = await Question.findById(req.params.id);
+        if (!question) return res.status(404).json({ message: "Question not found" });
+        if (question.user.toString() !== req.user.id) {
+            return res.status(403).json({ message: "Not authorized to delete this question" });
+        }
+        await Answer.deleteMany({ question: req.params.id });
+        await Question.findByIdAndDelete(req.params.id);
+        res.json({ message: "Question and associated answers deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to delete question" });
+    }
+});
+
+// GET answers for a question
+app.get("/api/questions/:id/answers", optionalAuth, async (req, res) => {
+    try {
+        const answers = await Answer.find({ question: req.params.id })
+            .populate("user", "name profilePic title isVerified")
+            .sort({ createdAt: -1 });
+        res.json(answers);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching answers" });
+    }
+});
+
+// POST answer to question
+app.post("/api/questions/:id/answers", auth, upload.single("media"), async (req, res) => {
+    try {
+        const { content } = req.body;
+        if (!content || !content.trim()) {
+            return res.status(400).json({ message: "Answer content is required" });
+        }
+
+        let mediaUrl = "";
+        let mediaType = "text";
+        if (req.file) {
+            mediaUrl = `/uploads/${req.file.filename}`;
+            const ext = path.extname(req.file.originalname).toLowerCase();
+            if ([".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(ext)) {
+                mediaType = "image";
+            } else if ([".mp4", ".mov", ".avi", ".mkv"].includes(ext)) {
+                mediaType = "video";
+            }
+        }
+
+        const newAnswer = new Answer({
+            user: req.user.id,
+            question: req.params.id,
+            content: content.trim(),
+            mediaUrl,
+            mediaType
+        });
+        await newAnswer.save();
+        await newAnswer.populate("user", "name profilePic title isVerified");
+
+        // Notify question author
+        const question = await Question.findById(req.params.id);
+        if (question && question.user.toString() !== req.user.id) {
+            const sender = await User.findById(req.user.id);
+            const notification = new Notification({
+                recipient: question.user,
+                sender: req.user.id,
+                type: "answer",
+                questionId: question._id,
+                answerId: newAnswer._id,
+                message: `${sender?.name || 'Someone'} answered your question: "${question.content.substring(0, 35)}..."`
+            });
+            await notification.save();
+        }
+
+        res.status(201).json(newAnswer);
+    } catch (error) {
+        console.error("Error creating answer:", error);
+        res.status(500).json({ message: "Failed to post answer" });
+    }
+});
+
+// Upvote answer
+app.post("/api/answers/:id/upvote", auth, async (req, res) => {
+    try {
+        const answer = await Answer.findById(req.params.id);
+        if (!answer) return res.status(404).json({ message: "Answer not found" });
+        const userId = req.user.id;
+
+        const upvoteIdx = answer.upvotes.indexOf(userId);
+        if (upvoteIdx > -1) {
+            answer.upvotes.splice(upvoteIdx, 1);
+        } else {
+            answer.upvotes.push(userId);
+        }
+        await answer.save();
+        res.json({ upvotesCount: answer.upvotes.length, isUpvoted: answer.upvotes.includes(userId) });
+    } catch (error) {
+        res.status(500).json({ message: "Upvote failed" });
+    }
+});
+
+// --- Spaces API ---
+app.get("/api/spaces", optionalAuth, async (req, res) => {
+    try {
+        const predefined = [
+            { name: "Psychology", description: "Exploring cognitive functions, human behavior, neurobiology, and mental paradigms.", icon: "fas fa-brain" },
+            { name: "Philosophy", description: "Deep inquiry into ethics, epistemology, existentialism, and ancient wisdom.", icon: "fas fa-book-open" },
+            { name: "Technology", description: "The frontier of innovation. AI, systems engineering, software, and digital society.", icon: "fas fa-microchip" },
+            { name: "Science", description: "Empirical discoveries, quantum mechanics, physics, and cosmological research.", icon: "fas fa-atom" },
+            { name: "Business", description: "Macroeconomics, venture strategy, intellectual leadership, and market philosophy.", icon: "fas fa-briefcase" },
+            { name: "General", description: "Open discussions on diverse topics across the intellectual salon.", icon: "fas fa-compass" }
+        ];
+
+        const counts = await Question.aggregate([
+            { $group: { _id: "$spaces", count: { $sum: 1 } } }
+        ]);
+        const countsMap = {};
+        counts.forEach(c => { if (c._id) countsMap[c._id.toLowerCase()] = c.count; });
+
+        const result = predefined.map(s => ({
+            ...s,
+            questionCount: countsMap[s.name.toLowerCase()] || 0,
+            membersCount: Math.max(12, (countsMap[s.name.toLowerCase()] || 1) * 8 + 42)
+        }));
+
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching spaces" });
+    }
+});
+
+// GET space top contributors
+app.get("/api/spaces/:name/contributors", optionalAuth, async (req, res) => {
+    try {
+        const spaceName = req.params.name;
+        const questionsInSpace = await Question.find({ 
+            spaces: { $regex: new RegExp(`^${spaceName}$`, "i") } 
+        }).distinct("user");
+
+        const contributors = await User.find({ _id: { $in: questionsInSpace } })
+            .select("name profilePic title")
+            .limit(5);
+
+        if (contributors.length < 3) {
+            const moreUsers = await User.find({ _id: { $nin: questionsInSpace } })
+                .select("name profilePic title")
+                .limit(4 - contributors.length);
+            contributors.push(...moreUsers);
+        }
+
+        res.json(contributors);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching space contributors" });
+    }
+});
+
+// Search Users (for New Chat modal)
+app.get("/api/users/search", auth, async (req, res) => {
+    try {
+        const q = (req.query.q || "").trim();
+        if (q.length < 2) return res.json([]);
+        const users = await User.find({
+            name: { $regex: q, $options: "i" },
+            _id: { $ne: req.user.id }
+        }).select("name profilePic title").limit(10);
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: "Search failed" });
     }
 });
 
@@ -478,7 +892,7 @@ app.get("/api/user/:id/questions", async (req, res) => {
 
 app.post("/api/stories", auth, upload.single("coverImage"), async (req, res) => {
     try {
-        const { title, description, genre, tags } = req.body;
+        const { title, description, genre, tags, content } = req.body;
         let coverImageUrl = "";
 
         if (req.file) {
@@ -496,6 +910,21 @@ app.post("/api/stories", auth, upload.single("coverImage"), async (req, res) => 
         });
 
         await newStory.save();
+
+        // If the user wrote story content manually, save it as Chapter 1
+        if (content && content.trim()) {
+            const newChapter = new StoryChapter({
+                story: newStory._id,
+                chapterNumber: 1,
+                title: "Chapter 1",
+                content: content.trim(),
+                isPublished: true
+            });
+            await newChapter.save();
+            newStory.chapters.push(newChapter._id);
+            await newStory.save();
+        }
+
         res.status(201).json(newStory);
     } catch (error) {
         console.error("Story creation error:", error);
@@ -659,6 +1088,52 @@ app.post("/api/stories/generate", auth, async (req, res) => {
             } catch (e) {}
         }
         res.status(500).json({ message: "Failed to generate story" });
+    }
+});
+
+app.post("/api/stories/:id/like", auth, async (req, res) => {
+    try {
+        const story = await Story.findById(req.params.id);
+        if (!story) return res.status(404).json({ message: "Story not found" });
+
+        const userId = req.user.id;
+        const likedIndex = story.likes.indexOf(userId);
+        const dislikedIndex = story.dislikes.indexOf(userId);
+
+        if (likedIndex > -1) {
+            story.likes.splice(likedIndex, 1); // Unlike
+        } else {
+            story.likes.push(userId); // Like
+            if (dislikedIndex > -1) story.dislikes.splice(dislikedIndex, 1); // Remove dislike if exists
+        }
+
+        await story.save();
+        res.json({ likes: story.likes.length, dislikes: story.dislikes.length });
+    } catch (error) {
+        res.status(500).json({ message: "Error toggling like" });
+    }
+});
+
+app.post("/api/stories/:id/dislike", auth, async (req, res) => {
+    try {
+        const story = await Story.findById(req.params.id);
+        if (!story) return res.status(404).json({ message: "Story not found" });
+
+        const userId = req.user.id;
+        const likedIndex = story.likes.indexOf(userId);
+        const dislikedIndex = story.dislikes.indexOf(userId);
+
+        if (dislikedIndex > -1) {
+            story.dislikes.splice(dislikedIndex, 1); // Remove dislike
+        } else {
+            story.dislikes.push(userId); // Dislike
+            if (likedIndex > -1) story.likes.splice(likedIndex, 1); // Remove like if exists
+        }
+
+        await story.save();
+        res.json({ likes: story.likes.length, dislikes: story.dislikes.length });
+    } catch (error) {
+        res.status(500).json({ message: "Error toggling dislike" });
     }
 });
 

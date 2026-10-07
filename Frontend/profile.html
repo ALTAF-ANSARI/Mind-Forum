@@ -3,232 +3,360 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Profile | Tellora</title>
+    <title>Profile | MindForum</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="home.css">
     <link rel="stylesheet" href="profile.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+
+    <!-- Top Navigation Bar -->
     <header class="navbar">
         <div class="nav-container">
-            <h1 class="logo" onclick="window.location.href='home.html'">Tellora</h1>
+            <h1 class="logo" onclick="window.location.href='home.html'">MindForum</h1>
             
             <div class="search-bar">
                 <i class="fas fa-search"></i>
-                <input type="text" placeholder="Search Tellora stories...">
+                <input type="text" id="globalSearchInput" placeholder="Search MindForum...">
             </div>
 
             <nav class="nav-links">
                 <a href="home.html"><i class="fas fa-compass"></i> Explore</a>
-                <a href="create-story.html"><i class="fas fa-pen-fancy"></i> Create Story</a>
+                <a href="home.html"><i class="far fa-question-circle"></i> Questions</a>
+                <a href="spaces.html"><i class="fas fa-layer-group"></i> Spaces</a>
+                <a href="home.html"><i class="far fa-bookmark"></i> Bookmarks</a>
             </nav>
 
             <div class="nav-actions">
-                <div class="notification-wrapper">
-                    <i class="fas fa-bell notif-icon" onclick="window.location.href='notifications.html'"></i>
+                <div class="notification-wrapper" onclick="window.location.href='notifications.html'">
+                    <i class="fas fa-bell notif-icon"></i>
                     <span class="notification-dot hidden" id="notifDot"></span>
                 </div>
-                <button class="btn-ask" onclick="window.location.href='create-story.html'">Write a Story</button>
+                <button class="btn-ask" onclick="openAskModal()"><i class="fas fa-plus"></i> Ask Question</button>
                 <div class="profile-section">
-                    <div class="avatar-container" id="profileTrigger">
-                        <!-- Loaded by JS -->
+                    <div class="avatar-container" id="profileTrigger" onclick="toggleProfileDropdown(event)">
+                        <!-- Populated by JS -->
                     </div>
 
                     <div class="profile-dropdown" id="profileDropdown">
                         <div class="dropdown-header">
-                            <h4 id="dropdownUserName">Loading...</h4>
-                            <p id="dropdownUserEmail"></p>
+                            <h4 id="dropdownUserName">User</h4>
+                            <p id="dropdownUserEmail">user@example.com</p>
                         </div>
                         <div class="dropdown-divider"></div>
-                        <div class="dropdown-item" onclick="window.location.href='home.html'">
-                            <i class="fas fa-home"></i>
-                            <span>Back to Feed</span>
+                        <div class="dropdown-item" onclick="window.location.href='profile.html'">
+                            <i class="fas fa-user-circle"></i>
+                            <span>My Profile</span>
+                        </div>
+                        <div class="dropdown-item" onclick="window.location.href='messages.html'">
+                            <i class="fas fa-comments"></i>
+                            <span>Messages</span>
                         </div>
                         <div class="dropdown-item" onclick="triggerProfileUpload()">
                             <i class="fas fa-camera"></i>
-                            <span>Upload Profile</span>
+                            <span>Upload Photo</span>
                         </div>
                         <div class="dropdown-item" onclick="openEditProfileModal()">
                             <i class="fas fa-user-edit"></i>
                             <span>Edit Profile</span>
                         </div>
                         <div class="dropdown-divider"></div>
-                        <div class="dropdown-item-settings">
-                            <div class="settings-label">
-                                <i class="fas fa-moon"></i>
-                                <span>Dark Mode</span>
-                            </div>
-                            <label class="switch">
-                                <input type="checkbox" id="themeToggle">
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                        <div class="dropdown-divider"></div>
                         <div class="dropdown-item logout-item" onclick="logout()">
                             <i class="fas fa-sign-out-alt"></i>
                             <span>Logout</span>
                         </div>
-                        <input type="file" id="profileUploadInput" style="display: none;" accept="image/*" onchange="uploadPhoto(event)">
                     </div>
                 </div>
             </div>
         </div>
     </header>
 
-    <main class="main-layout profile-page">
-        <!-- Left Sidebar -->
+    <!-- Main 3-Column Layout -->
+    <main class="main-layout profile-layout">
+        
+        <!-- Left Sidebar: Spaces -->
         <aside class="sidebar-left">
             <div class="sidebar-section">
-                <h3><i class="fas fa-book-open brand-icon"></i> Genres</h3>
-                <p class="subtitle" style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px; padding-left: 12px;">Discover stories</p>
-                <ul class="space-list">
-                    <li onclick="window.location.href='home.html'"><i class="fas fa-home"></i> All Stories</li>
-                    <li onclick="window.location.href='home.html?genre=Fantasy'"><i class="fas fa-dragon"></i> Fantasy</li>
-                    <li onclick="window.location.href='home.html?genre=Sci-Fi'"><i class="fas fa-rocket"></i> Sci-Fi</li>
-                    <li onclick="window.location.href='home.html?genre=Mystery'"><i class="fas fa-user-secret"></i> Mystery</li>
-                    <li onclick="window.location.href='home.html?genre=Romance'"><i class="fas fa-heart"></i> Romance</li>
-                    <li onclick="window.location.href='home.html?genre=Thriller'"><i class="fas fa-bolt"></i> Thriller</li>
-                    <li onclick="window.location.href='home.html?genre=Adventure'"><i class="fas fa-map"></i> Adventure</li>
+                <h3>SPACES</h3>
+                <p class="subtitle">Follow your interests</p>
+                <ul class="space-list" id="sidebarSpacesList">
+                    <li onclick="window.location.href='home.html'"><i class="fas fa-home"></i> Home</li>
+                    <li onclick="window.location.href='spaces.html?space=Psychology'"><i class="fas fa-brain"></i> Psychology</li>
+                    <li onclick="window.location.href='spaces.html?space=Philosophy'"><i class="fas fa-book-open"></i> Philosophy</li>
+                    <li onclick="window.location.href='spaces.html?space=Technology'"><i class="fas fa-microchip"></i> Technology</li>
+                    <li onclick="window.location.href='spaces.html?space=Science'"><i class="fas fa-flask"></i> Science</li>
+                    <li onclick="window.location.href='spaces.html?space=Business'"><i class="fas fa-briefcase"></i> Business</li>
                 </ul>
             </div>
-            <div class="footer-links" style="margin-top: 32px; font-size: 12px; color: var(--text-muted); padding-left: 12px;">
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <i class="far fa-question-circle"></i> <a href="#" style="color: inherit; text-decoration: none;">Help</a>
+
+            <div class="sidebar-footer">
+                <button class="btn-create-space" onclick="openAskModal('Technology')">
+                    <i class="fas fa-plus"></i> Create Space
+                </button>
+                <div class="footer-links">
+                    <a href="home.html">Help</a>
+                    <a href="home.html">Privacy</a>
+                    <a href="home.html">Terms</a>
                 </div>
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <i class="fas fa-shield-alt"></i> <a href="#" style="color: inherit; text-decoration: none;">Privacy</a>
-                </div>
-                <p style="margin-top: 16px; opacity: 0.7;">&copy; 2024 Tellora</p>
             </div>
         </aside>
 
-        <!-- Center Content: Profile -->
-        <section class="profile-main-container">
-            <!-- Profile Header Card -->
-            <div class="profile-header-card animate-fade-in">
-                <div class="profile-header-top">
-                    <div class="profile-photo-wrapper" id="profileLargeImgContainer">
-                        <!-- Loaded by JS (Supports fallback letter avatar) -->
-                        <div class="verified-badge" id="verifiedBadge" style="display: none;">
+        <!-- Center Column: Profile & Activity Feed -->
+        <section class="profile-center">
+            
+            <!-- Profile Hero Card (Image 5 & 8) -->
+            <div class="profile-header-card">
+                <div class="profile-hero-top">
+                    <div class="profile-avatar-box" id="profileLargeImgContainer">
+                        <div class="avatar-img-wrap" id="profileAvatarWrap">
+                            <!-- Populated by JS -->
+                        </div>
+                        <div class="profile-verified-badge" id="verifiedBadge">
                             <i class="fas fa-check"></i>
                         </div>
                     </div>
-                    </div>
-                    
-                    <div class="profile-main-info">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+
+                    <div class="profile-info-block">
+                        <div class="profile-name-row">
                             <div>
-                                <h1 id="profileName">---</h1>
-                                <p id="profileTitle" class="explorer-title">---</p>
+                                <h1 class="profile-name" id="profileName">Loading...</h1>
+                                <p class="profile-title" id="profileTitle">Scholar & Researcher</p>
                             </div>
-                            <div class="profile-actions" style="display: flex; gap: 12px;">
-                                <button class="btn-secondary hidden" id="editProfileBtn" onclick="openEditProfileModal()"><i class="fas fa-edit"></i> Edit Profile</button>
-                                <button class="btn-primary hidden" id="followBtn"><i class="fas fa-user-plus"></i> Follow</button>
-                                <button class="btn-secondary" id="contactBtn"><i class="fas fa-envelope"></i> Contact Me</button>
+                            <div class="profile-action-btns">
+                                <button class="btn-edit-profile" id="editProfileBtn" onclick="openEditProfileModal()">
+                                    Edit Profile
+                                </button>
+                                <button class="btn-follow-user" id="followBtn" onclick="handleFollowToggle()">
+                                    Follow
+                                </button>
+                                <button class="btn-message-user" id="messageUserBtn" onclick="handleDirectMessage()">
+                                    <i class="far fa-paper-plane"></i> Message
+                                </button>
                             </div>
                         </div>
 
+                        <!-- Stats Row -->
                         <div class="profile-stats-row">
-                            <div class="stat-item">
-                                <strong id="countFollowers">0</strong>
-                                <span>Followers</span>
+                            <div class="stat-pill">
+                                <span class="stat-val" id="countFollowers">0</span>
+                                <span class="stat-lbl">FOLLOWERS</span>
                             </div>
-                            <div class="stat-item">
-                                <strong id="countFollowing">0</strong>
-                                <span>Following</span>
+                            <div class="stat-pill">
+                                <span class="stat-val" id="countFollowing">0</span>
+                                <span class="stat-lbl">FOLLOWING</span>
                             </div>
-                            <div class="stat-item">
-                                <strong id="countStories">0</strong>
-                                <span>Stories</span>
+                            <div class="stat-pill">
+                                <span class="stat-val" id="countAnswers">0</span>
+                                <span class="stat-lbl">ANSWERS</span>
                             </div>
                         </div>
 
-                        <div class="profile-header-bio">
-                            <p id="profileBioText">Initializing your story...</p>
+                        <!-- Bio -->
+                        <p class="profile-bio-text" id="profileBioText">
+                            Exploring the intersection of human cognition and digital ecosystems.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Navigation Tabs -->
+            <div class="profile-tabs-bar">
+                <button class="profile-tab active" data-tab="answers" onclick="switchProfileTab('answers')">
+                    Answers (<span id="tabCountAnswers">0</span>)
+                </button>
+                <button class="profile-tab" data-tab="questions" onclick="switchProfileTab('questions')">
+                    Questions (<span id="tabCountQuestions">0</span>)
+                </button>
+                <button class="profile-tab" data-tab="posts" onclick="switchProfileTab('posts')">
+                    Posts
+                </button>
+                <button class="profile-tab" data-tab="followers" onclick="switchProfileTab('followers')">
+                    Followers
+                </button>
+            </div>
+
+            <!-- Feed Content List -->
+            <div class="profile-feed-list" id="profileFeedList">
+                <div class="loading-state">
+                    <i class="fas fa-circle-notch fa-spin"></i> Loading intellectual activity...
+                </div>
+            </div>
+
+            <!-- Community Chat Widget (Image 8) -->
+            <div class="community-chat-card" id="communityChatCard">
+                <div class="community-chat-header">
+                    <div class="chat-header-left">
+                        <div class="chat-bubble-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <h3>Community Chat</h3>
+                    </div>
+                    <div class="chat-online-badge">
+                        <span class="online-indicator-dot"></span>
+                        <span id="communityOnlineCount">248 Online Now</span>
+                    </div>
+                </div>
+
+                <div class="community-chat-body">
+                    <!-- Members Column -->
+                    <div class="community-members-pane">
+                        <div class="members-title">MEMBERS</div>
+                        <div class="members-list" id="communityMembersList">
+                            <!-- Populated dynamically by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Discussion Stream -->
+                    <div class="community-messages-pane">
+                        <div class="messages-stream" id="communityMessagesStream">
+                            <!-- Populated dynamically by JS -->
+                        </div>
+
+                        <!-- Input Bar -->
+                        <div class="community-input-bar">
+                            <button class="chat-tool-btn" title="Emoji" onclick="insertChatEmoji()">
+                                <i class="far fa-smile"></i>
+                            </button>
+                            <input type="text" id="communityChatInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendCommunityMessage()">
+                            <button class="chat-tool-btn" title="Attach file" onclick="document.getElementById('communityChatFile').click()">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <input type="file" id="communityChatFile" style="display:none" onchange="handleCommunityChatFileUpload(event)">
+                            <button class="btn-chat-send" onclick="sendCommunityMessage()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Tabs Navigation -->
-            <div class="profile-tabs-nav">
-                <button class="tab-link active" onclick="switchTab('stories', event)">Stories (<span id="tabCountStories">0</span>)</button>
-                <button class="tab-link" onclick="switchTab('followers', event)">Followers</button>
-                <button class="tab-link" onclick="switchTab('following', event)">Following</button>
-            </div>
-
-            <!-- Tab Content -->
-            <div id="tabContentFeed" class="profile-feed">
-                <!-- Dynamically loaded cards -->
-                <div class="loading-state">
-                    <i class="fas fa-circle-notch fa-spin"></i>
-                    <p>Loading your activity...</p>
-                </div>
-            </div>
         </section>
 
-        <!-- Right Sidebar: Widgets -->
+        <!-- Right Sidebar: Widgets (Image 5 & 8) -->
         <aside class="sidebar-right">
+            
+            <!-- Credentials & Highlights Card -->
             <div class="widget-card credentials-widget">
-                <h3><i class="fas fa-id-card"></i> Credentials & Highlights</h3>
-                <div id="credentialsList" class="widget-list">
-                    <!-- Loaded by JS -->
-                    <p class="empty-state">No credentials added yet.</p>
+                <div class="widget-header">
+                    <i class="fas fa-graduation-cap"></i>
+                    <h4>Credentials & Highlights</h4>
+                </div>
+                <div class="credentials-list" id="credentialsList">
+                    <!-- Loaded dynamically by JS -->
                 </div>
             </div>
 
-            <div class="widget-card spaces-widget">
-                <h3><i class="fas fa-heart"></i> Active Spaces</h3>
-                <div id="activeSpacesList" class="interests-grid">
-                    <!-- Loaded by JS -->
+            <!-- Active Spaces Card -->
+            <div class="widget-card active-spaces-widget">
+                <div class="widget-header">
+                    <i class="fas fa-shapes"></i>
+                    <h4>Active Spaces</h4>
                 </div>
-                <a href="#" class="view-all-link">View All Interests</a>
+                <div class="spaces-pills-wrap" id="activeSpacesPills">
+                    <!-- Loaded dynamically by JS -->
+                </div>
+                <div class="widget-footer-link">
+                    <a href="spaces.html">View All Interests</a>
+                </div>
             </div>
 
+            <!-- Ask Anything Floating / Action Button -->
+            <div class="ask-anything-wrap">
+                <button class="btn-ask-anything" onclick="openAskModal()">
+                    <i class="fas fa-pen-nib"></i> Ask Anything
+                </button>
+            </div>
+
+            <!-- Impact Score Crimson Card -->
             <div class="impact-score-card">
-                <div class="impact-header">
+                <div class="impact-score-bg-decor"></div>
+                <div class="impact-score-header">
                     <span>Impact Score</span>
-                    <div class="impact-score-value">
-                        <h2 id="impactScore">0</h2>
-                        <span class="views-label">VIEWS</span>
+                    <div class="impact-number-row">
+                        <h2 class="impact-num" id="impactScoreVal">8.4M</h2>
+                        <span class="impact-lbl">VIEWS</span>
                     </div>
                 </div>
-                <p id="impactDescription">Join the conversation to grow your impact.</p>
-                <button class="btn-ask-anything" onclick="window.location.href='create-story.html'"><i class="fas fa-feather-alt"></i> Write a Story</button>
+                <p class="impact-desc" id="impactDesc">
+                    Julian's answers have reached over 8 million people this year, helping bridge the gap between academia and public discourse.
+                </p>
             </div>
+
         </aside>
+
     </main>
 
-    <!-- Modals Removed for simplicity, Create Story replaces them -->
+    <!-- Hidden Profile Upload -->
+    <input type="file" id="profileUploadInput" style="display:none" accept="image/*" onchange="uploadPhoto(event)">
 
     <!-- Edit Profile Modal -->
-    <div id="editProfileModal" class="modal">
-        <div class="modal-content">
+    <div id="editProfileModal" class="modal-overlay hidden">
+        <div class="modal-card">
             <div class="modal-header">
-                <h2>Edit Profile</h2>
-                <span class="close-btn" onclick="closeEditProfileModal()">&times;</span>
+                <h2>Edit Intellectual Profile</h2>
+                <button class="btn-close-modal" onclick="closeEditProfileModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Bio</label>
-                    <textarea id="editBio" placeholder="Tell us about yourself..." style="width: 100%; height: 100px; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; resize: none; font-size: 14px;"></textarea>
+                <div class="form-group">
+                    <label>Title / Credential</label>
+                    <input type="text" id="editTitle" placeholder="e.g. Cognitive Psychologist & Tech Ethicist">
                 </div>
                 <div class="form-group">
-                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Fields of Interest (comma-separated)</label>
-                    <input type="text" id="editInterests" placeholder="e.g. Stories, Comics, Adventure" style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px;">
+                    <label>Bio</label>
+                    <textarea id="editBio" rows="3" placeholder="Describe your areas of study, research, or interests..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Active Interests / Spaces (Comma separated)</label>
+                    <input type="text" id="editInterests" placeholder="e.g. Behavioral Science, Ethical AI, Neurobiology">
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn-cancel" onclick="closeEditProfileModal()">Cancel</button>
-                <button class="btn-post" onclick="updateProfile()">Save Changes</button>
+                <button class="btn-modal-cancel" onclick="closeEditProfileModal()">Cancel</button>
+                <button class="btn-modal-submit" onclick="saveProfileChanges()">Save Changes</button>
             </div>
         </div>
     </div>
 
-    <!-- Hidden Profile Input -->
-    <input type="file" id="profileUploadInput" accept="image/*" style="display: none;" onchange="uploadPhoto(event)">
+    <!-- Ask Question Modal (Reusable) -->
+    <div id="askModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Ask an Intellectual Question</h2>
+                <button class="btn-close-modal" onclick="closeAskModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Choose Space</label>
+                    <select id="questionSpaceSelect">
+                        <option value="Psychology">Psychology</option>
+                        <option value="Philosophy">Philosophy</option>
+                        <option value="Technology">Technology</option>
+                        <option value="Science">Science</option>
+                        <option value="Business">Business</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Question Title</label>
+                    <input type="text" id="questionTitleInput" placeholder="Start your question with 'What', 'How', 'Why', etc.">
+                </div>
+                <div class="form-group">
+                    <label>Context or Background (Optional)</label>
+                    <textarea id="questionDescInput" rows="4" placeholder="Provide background or details to foster deeper dialogue..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" onclick="closeAskModal()">Cancel</button>
+                <button class="btn-modal-submit" onclick="submitNewQuestion()">Post Question</button>
+            </div>
+        </div>
+    </div>
 
+    <!-- Scripts -->
     <script src="home.js"></script>
     <script src="profile.js"></script>
 </body>

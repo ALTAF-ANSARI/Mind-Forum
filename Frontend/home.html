@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tellora | Story Sharing</title>
+    <title>MindForum | Intellectual Salon</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome for Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="home.css">
 </head>
@@ -17,26 +17,29 @@
     <!-- Top Navigation Bar -->
     <header class="navbar">
         <div class="nav-container">
-            <h1 class="logo" onclick="window.location.reload()">Tellora</h1>
+            <h1 class="logo" onclick="window.location.href='/home'">MindForum</h1>
             
             <div class="search-bar">
                 <i class="fas fa-search"></i>
-                <input type="text" placeholder="Search Tellora stories...">
+                <input type="text" id="searchInput" placeholder="Search MindForum..." oninput="handleSearch(event)">
             </div>
 
             <nav class="nav-links">
-                <a href="home.html" class="active"><i class="fas fa-compass"></i> Explore</a>
-                <a href="create-story.html"><i class="fas fa-pen-fancy"></i> Create Story</a>
+                <a href="/home" class="active"><i class="fas fa-compass"></i> Explore</a>
+                <a href="/home?filter=questions"><i class="fas fa-question-circle"></i> Questions</a>
+                <a href="/spaces"><i class="fas fa-layer-group"></i> Spaces</a>
+                <a href="/messages"><i class="fas fa-comments"></i> Messages</a>
+                <a href="/ai-assistant"><i class="fas fa-robot"></i> AI Assistant</a>
             </nav>
 
             <div class="nav-actions">
-                <div class="notification-wrapper">
-                    <i class="fas fa-bell notif-icon" onclick="window.location.href='notifications.html'"></i>
+                <div class="notification-wrapper" onclick="window.location.href='/notifications'">
+                    <i class="fas fa-bell notif-icon"></i>
                     <span class="notification-dot hidden" id="notifDot"></span>
                 </div>
-                <button class="btn-ask" onclick="window.location.href='create-story.html'">Write a Story</button>
+                <button class="btn-ask" onclick="openAskModal()">Ask Question</button>
                 <div class="profile-section">
-                    <div class="avatar-container" id="profileTrigger">
+                    <div class="avatar-container" id="profileTrigger" onclick="toggleProfileDropdown()">
                         <!-- Will be populated by JS -->
                     </div>
 
@@ -50,7 +53,7 @@
                         <div class="dropdown-divider"></div>
                         <div class="dropdown-item" onclick="triggerProfileUpload()">
                             <i class="fas fa-camera"></i>
-                            <span>Upload Profile</span>
+                            <span>Upload Photo</span>
                         </div>
                         <div class="dropdown-item" onclick="openEditProfileModal()">
                             <i class="fas fa-user-edit"></i>
@@ -83,38 +86,46 @@
         <!-- Left Sidebar -->
         <aside class="sidebar-left">
             <div class="sidebar-section">
-                <h3><i class="fas fa-book-open brand-icon"></i> Genres</h3>
-                <p class="subtitle">Discover stories</p>
-                <ul class="space-list">
-                    <li class="active" onclick="window.location.href='home.html'" style="cursor: pointer;"><i class="fas fa-home"></i> All Stories</li>
-                    <li onclick="window.location.href='home.html?genre=Fantasy'" style="cursor: pointer;"><i class="fas fa-dragon"></i> Fantasy</li>
-                    <li onclick="window.location.href='home.html?genre=Sci-Fi'" style="cursor: pointer;"><i class="fas fa-rocket"></i> Sci-Fi</li>
-                    <li onclick="window.location.href='home.html?genre=Mystery'" style="cursor: pointer;"><i class="fas fa-user-secret"></i> Mystery</li>
-                    <li onclick="window.location.href='home.html?genre=Romance'" style="cursor: pointer;"><i class="fas fa-heart"></i> Romance</li>
-                    <li onclick="window.location.href='home.html?genre=Thriller'" style="cursor: pointer;"><i class="fas fa-bolt"></i> Thriller</li>
-                    <li onclick="window.location.href='home.html?genre=Adventure'" style="cursor: pointer;"><i class="fas fa-map"></i> Adventure</li>
+                <h3><i class="fas fa-atom brand-icon"></i> SPACES</h3>
+                <p class="subtitle">Follow your interests</p>
+                <ul class="space-list" id="spacesSidebarList">
+                    <li class="active" onclick="filterBySpace('All', this)"><i class="fas fa-home"></i> Home</li>
+                    <li onclick="filterBySpace('Psychology', this)"><i class="fas fa-brain"></i> Psychology</li>
+                    <li onclick="filterBySpace('Philosophy', this)"><i class="fas fa-book-open"></i> Philosophy</li>
+                    <li onclick="filterBySpace('Technology', this)"><i class="fas fa-microchip"></i> Technology</li>
+                    <li onclick="filterBySpace('Science', this)"><i class="fas fa-atom"></i> Science</li>
+                    <li onclick="filterBySpace('Business', this)"><i class="fas fa-briefcase"></i> Business</li>
                 </ul>
+                <button class="btn-create-space" onclick="openAskModal('Space')"><i class="fas fa-plus"></i> Create Space</button>
             </div>
             
             <div class="footer-links">
                 <a href="#">Help</a> • <a href="#">Privacy</a> • <a href="#">Terms</a>
-                <p>&copy; 2024 Tellora</p>
+                <p>&copy; 2024 MindForum</p>
             </div>
         </aside>
 
         <!-- Main Feed -->
         <section class="feed-container">
-            <!-- Ask/Post Input Box (Removed in favor of Create Story button) -->
-            <div class="post-input-card" style="display:flex; justify-content:space-between; align-items:center;">
-                <h2 style="font-size:20px;">Latest Stories</h2>
-                <button class="btn-post" onclick="window.location.href='create-story.html'" style="padding: 10px 20px; border-radius: 20px;"><i class="fas fa-pen"></i> Write / Generate</button>
+            <!-- Composer Card matching Image 2 -->
+            <div class="post-input-card">
+                <div class="input-top">
+                    <div class="avatar-container mini" id="miniProfileContainer" onclick="openAskModal()">
+                        <!-- Injected by JS -->
+                    </div>
+                    <input type="text" placeholder="What is your question or link?" onclick="openAskModal()" readonly>
+                </div>
+                <div class="input-actions">
+                    <button type="button" onclick="openAskModal('ask')"><i class="fas fa-question-circle"></i> Ask</button>
+                    <button type="button" onclick="openAskModal('answer')"><i class="fas fa-bars"></i> Answer</button>
+                    <button type="button" onclick="openAskModal('post')"><i class="fas fa-edit"></i> Post</button>
+                </div>
             </div>
 
             <!-- Dynamic Feed Content -->
             <div id="feedContent">
-                <!-- Questions will be loaded here -->
                  <div class="loading-state">
-                     <i class="fas fa-circle-notch fa-spin"></i> Loading your feed...
+                     <i class="fas fa-circle-notch fa-spin"></i> Loading intellectual feed...
                  </div>
             </div>
         </section>
@@ -122,45 +133,55 @@
         <!-- Right Side Panel -->
         <aside class="sidebar-right">
             <div class="suggested-topics card">
-                <h3><i class="fas fa-trophy"></i> TOP AUTHORS</h3>
-                <ul class="topic-list" id="topAuthorsList">
-                    <!-- Dynamic content -->
-                    <div class="loading-state" style="padding: 10px;">Loading ranking...</div>
+                <h3><i class="fas fa-chart-line" style="color:var(--primary-color);"></i> SUGGESTED TOPICS</h3>
+                <ul class="topic-list" id="suggestedTopicsList">
+                    <!-- Populated dynamically -->
                 </ul>
-            </div>
-
-            <div class="suggested-topics card">
-                <h3><i class="fas fa-fire"></i> TRENDING GENRES</h3>
-                <ul class="topic-list" id="trendingGenresList">
-                    <!-- Dynamic content -->
-                    <div class="loading-state" style="padding: 10px;">Loading...</div>
-                </ul>
+                <a href="/spaces" class="see-more">See More Topics</a>
             </div>
 
             <div class="improve-feed card">
-                <h3>Community Stats</h3>
-                <ul class="checklist" id="communityStatsList">
-                    <!-- Dynamic content -->
+                <h3>Improve Your Feed</h3>
+                <ul class="checklist" id="feedChecklist">
+                    <li><i class="far fa-check-circle completed" id="checkSpacesIcon"></i> Follow 5 more Spaces</li>
+                    <li><i class="far fa-circle" id="checkUpvotesIcon"></i> Upvote 3 quality answers</li>
+                    <li><i class="far fa-circle" id="checkBioIcon"></i> Complete your bio</li>
                 </ul>
             </div>
 
             <div class="upgrade-card">
-                <h3>Upgrade to Tellora Premium</h3>
-                <p>Support talented authors and enjoy an ad-free experience with exclusive story chapters and early access.</p>
-                <button class="btn-upgrade">Learn More</button>
+                <h3>Upgrade to MindForum+</h3>
+                <p>Support independent intellectuals and enjoy an ad-free experience with exclusive deep-dive content.</p>
+                <button class="btn-upgrade" onclick="alert('MindForum+ subscription coming soon!')">Learn More</button>
             </div>
         </aside>
     </main>
+
+    <!-- Floating Action Button (+) -->
+    <button class="floating-ask-btn" onclick="openAskModal()" title="Ask Question">
+        <i class="fas fa-plus"></i>
+    </button>
 
     <!-- Ask Question Modal -->
     <div id="askModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Create Post</h2>
+                <h2>Ask a Question</h2>
                 <span class="close-btn" onclick="closeAskModal()">&times;</span>
             </div>
             <div class="modal-body">
-                <textarea id="questionContent" placeholder="Start your question with 'What', 'How', 'Why', etc."></textarea>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Select Space / Topic</label>
+                    <select id="questionSpaceSelect" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; margin-top: 6px; font-size: 14px; background: var(--card-bg); color: var(--text-main);">
+                        <option value="General">General Discussion</option>
+                        <option value="Psychology">Psychology</option>
+                        <option value="Philosophy">Philosophy</option>
+                        <option value="Technology">Technology</option>
+                        <option value="Science">Science</option>
+                        <option value="Business">Business</option>
+                    </select>
+                </div>
+                <textarea id="questionContent" placeholder="What is your question or thesis? Start with 'What', 'How', 'Why', etc."></textarea>
                 
                 <div id="mediaPreviewContainer" class="hidden">
                     <img id="imagePreview" src="" class="hidden">
@@ -170,7 +191,7 @@
 
                 <div class="media-upload-options">
                     <label for="mediaInput" class="upload-btn">
-                        <i class="fas fa-image"></i> Add Image/Video
+                        <i class="fas fa-image"></i> Add Image / Attachment
                     </label>
                     <input type="file" id="mediaInput" accept="image/*,video/*" hidden onchange="handleMediaSelect(event)">
                 </div>

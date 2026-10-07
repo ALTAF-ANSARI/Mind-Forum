@@ -4,9 +4,9 @@ dotenv.config()
 
 const dbConnect = async () => {
     try {
-        const uri = process.env.DATABASEURL;
+        const uri = process.env.DATABASEURL || process.env.MONGODB_URI;
         if (!uri || uri === "undefined") {
-            throw new Error("DATABASEURL is not defined in the environment variables.");
+            throw new Error("Neither DATABASEURL nor MONGODB_URI is defined in the environment variables.");
         }
         
         console.log("Attempting to connect to MongoDB...");
